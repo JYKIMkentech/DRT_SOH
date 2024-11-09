@@ -39,14 +39,14 @@ for i = 1:num_segments
     data(i).step = data1.step(idx_start);  % 해당 구간의 step 번호
 end
 
-% 사용자로부터 Aging Cycle 번호 입력받기
-aging_cycle = input('몇 번째 Aging cycle을 분석하시겠습니까? ');
+% Aging Cycle 번호 고정 (14번째)
+aging_cycle = 14;
 
-% 입력된 cycle에 해당하는 첫 번째 데이터 찾기
+% 해당 cycle에 해당하는 첫 번째 데이터 찾기
 indices_with_step = find([data.step] == aging_cycle);
 
 if isempty(indices_with_step)
-    error('입력하신 Aging cycle에 해당하는 데이터가 없습니다.');
+    error('14번째 Aging cycle에 해당하는 데이터가 없습니다.');
 else
     first_index = indices_with_step(1);
     Onori_Cycling_UDDS = data(first_index);
@@ -67,7 +67,7 @@ total_time = Onori_Cycling_UDDS.t(end) - Onori_Cycling_UDDS.t(1);
 
 % 초기 설정
 trip_start_indices = 1;        % 첫 번째 trip은 항상 시작 인덱스 1
-last_trip_time = t_start;      % 마지막으로 찾은 trip의 시작 시간
+last_trip_time = t_start;      % 마지막 trip의 시작 시간
 
 % 두 번째 trip부터 사용할 기준 전류값
 reference_current = 0.001; %0.0087;    % 기준 전류값
@@ -176,3 +176,8 @@ for i = 1:num_trips
     fprintf('trip%d: 시작 시간 = %.2f 초, 종료 시간 = %.2f 초\n', ...
         i, trips(i).time_reset(1), trips(i).time_reset(end));
 end
+
+% trips 구조체 저장
+save_filename = sprintf('processed_10_trips_cycle%d.mat', aging_cycle);
+save(save_filename, 'trips');
+fprintf('trips 구조체가 %s 파일로 저장되었습니다.\n', save_filename);
