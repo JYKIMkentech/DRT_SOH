@@ -3,6 +3,7 @@ clc; clear; close all;
 % 데이터 로드
 load('G:\공유 드라이브\BSL_Onori\Cycling_tests\Processed_10\G1.mat');
 
+
 I_1C = 4.8; % [A]
 
 time = t_full_vec_M1_NMC25degC;
@@ -70,7 +71,7 @@ trip_start_indices = 1;        % 첫 번째 trip은 항상 시작 인덱스 1
 last_trip_time = t_start;      % 마지막 trip의 시작 시간
 
 % 두 번째 trip부터 사용할 기준 전류값
-reference_current = 0.001; %0.0087;    % 기준 전류값
+reference_current = 0.001;    % 기준 전류값
 
 % while 루프를 사용하여 trip 시작 지점 찾기
 trip_number = 1;  % 현재 trip 번호
@@ -124,43 +125,80 @@ end
 trip_start_indices = unique(trip_start_indices, 'stable');
 
 % 각 trip 데이터 분할 및 time_reset 필드 추가
-num_trips = length(trip_start_indices);
-trips = struct('t', [], 'I', [], 'V', [], 'time_reset', []);
+num_trips_original = length(trip_start_indices);
+trips_original = struct('t', [], 'I', [], 'V', [], 'time_reset', []);
 
-for i = 1:num_trips
+for i = 1:num_trips_original
     idx_start = trip_start_indices(i);
-    if i < num_trips
+    if i < num_trips_original
         idx_end = trip_start_indices(i+1) - 1;
     else
         idx_end = length(Onori_Cycling_UDDS.t);
     end
     range = idx_start:idx_end;
     
-    trips(i).t = Onori_Cycling_UDDS.t(range);
-    trips(i).I = Onori_Cycling_UDDS.I(range);
-    trips(i).V = Onori_Cycling_UDDS.V(range);
-    trips(i).time_reset = trips(i).t - trips(i).t(1);  % 시간 초기화
+    trips_original(i).t = Onori_Cycling_UDDS.t(range);
+    trips_original(i).I = Onori_Cycling_UDDS.I(range);
+    trips_original(i).V = Onori_Cycling_UDDS.V(range);
+    trips_original(i).time_reset = trips_original(i).t - trips_original(i).t(1);  % 시간 초기화
 end
+
+%% data(5)와 data(6)을 trips 구조체 형식에 맞게 변환하여 맨 앞에 추가
+num_new_trips = 2;
+new_trips = struct('t', [], 'I', [], 'V', [], 'time_reset', []);
+for i = 1:num_new_trips
+    data_idx = i + 4; % data(5)와 data(6)
+    new_trips(i).t = data(data_idx).t;
+    new_trips(i).I = data(data_idx).I;
+    new_trips(i).V = data(data_idx).V;
+    new_trips(i).time_reset = new_trips(i).t - new_trips(i).t(1); % 시간 초기화
+end
+
+% trips 구조체 배열 생성 (new_trips + trips_original)
+trips = [new_trips, trips_original];
+
+% 전체 trip 수 업데이트
+num_trips = length(trips);
+
+% 전체 데이터를 위해 Onori_Cycling_Total 생성 (data(5), data(6), Onori_Cycling_UDDS 합침)
+Onori_Cycling_Total.t = [new_trips(1).t; new_trips(2).t; Onori_Cycling_UDDS.t];
+Onori_Cycling_Total.I = [new_trips(1).I; new_trips(2).I; Onori_Cycling_UDDS.I];
+Onori_Cycling_Total.V = [new_trips(1).V; new_trips(2).V; Onori_Cycling_UDDS.V];
+
+% trip_start_indices 업데이트 (전체 데이터 기준으로)
+trip_start_indices_total = zeros(1, num_trips);
+trip_start_indices_total(1) = 1; % 첫 번째 trip 시작 인덱스
+
+% 각 trip의 시작 인덱스 계산
+current_index = 1;
+for i = 1:num_trips
+    trip_length = length(trips(i).t);
+    trip_start_indices_total(i) = current_index;
+    current_index = current_index + trip_length;
+end
+
+% t_start 업데이트 (전체 데이터의 시작 시간)
+t_start = Onori_Cycling_Total.t(1);
 
 % 전류 대비 시간 플롯 및 trip 시작점 표시
 figure;
-plot(Onori_Cycling_UDDS.t - t_start, Onori_Cycling_UDDS.I, 'b');  % 전체 데이터는 파란색 선으로
+plot(Onori_Cycling_Total.t - t_start, Onori_Cycling_Total.I, 'b');  % 전체 데이터는 파란색 선으로
 hold on;
 
 % 각 trip의 시작 지점 표시 및 레이블 추가
-for i = 1:num_trips
-    trip_time = Onori_Cycling_UDDS.t(trip_start_indices(i)) - t_start;
+for i = 3:num_trips
+    trip_time = Onori_Cycling_Total.t(trip_start_indices_total(i)) - t_start;
     % 빨간색 원 표시
-    plot(trip_time, Onori_Cycling_UDDS.I(trip_start_indices(i)), 'ro', 'MarkerSize', 8, 'LineWidth', 2);
+    plot(trip_time, Onori_Cycling_Total.I(trip_start_indices_total(i)), 'ro', 'MarkerSize', 8, 'LineWidth', 2);
     % 수직 검은색 점선 추가
-    if exist('xline', 'file') == 2  % MATLAB R2018b 이상
+    if exist('xline', 'file') == 2  
         xline(trip_time, 'k--', 'LineWidth', 1.5);
     else
         % 이전 버전 호환을 위해 대체 방법 사용
         plot([trip_time, trip_time], ylim, 'k--', 'LineWidth', 1.5);
     end
     % 레이블 추가 (상단)
-    text(trip_time + 15, max(Onori_Cycling_UDDS.I) * 0.95, sprintf('trip%d', i), ...
+    text(trip_time + 15, max(Onori_Cycling_Total.I) * 0.95, sprintf('trip%d', i-2), ...
         'FontSize', 12, 'Color', 'k', 'HorizontalAlignment', 'left', 'VerticalAlignment', 'top');
 end
 
@@ -177,7 +215,9 @@ for i = 1:num_trips
         i, trips(i).time_reset(1), trips(i).time_reset(end));
 end
 
+
+
 % trips 구조체 저장
-save_filename = sprintf('processed_10_trips_cycle%d.mat', aging_cycle);
+save_filename = sprintf('processed_10_trips_cycle%d_with_data5_6.mat', aging_cycle);
 save(save_filename, 'trips');
 fprintf('trips 구조체가 %s 파일로 저장되었습니다.\n', save_filename);

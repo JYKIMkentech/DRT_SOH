@@ -1,4 +1,4 @@
-clear; clc; close all;
+clc;clear;close all;
 
 %% 0. 폰트 크기 및 색상 매트릭스 설정
 % Font size settings
@@ -26,9 +26,9 @@ ocv_values = soc_ocv_cap(:, 2);  % OCV 값 (V)
 Q_batt = max(soc_ocv_cap(:, 3));  % Ah 단위
 
 %% 3. DRT 추정에 필요한 파라미터 설정
-n = 201;  % 이산 요소의 개수
+n = 401;  % 이산 요소의 개수
 tau_min = 0.1;     % 최소 시간 상수 (초)
-tau_max = 2000;    % 최대 시간 상수 (초)
+tau_max = 2600;    % 최대 시간 상수 (초)
 
 % Theta 및 tau 값 계산
 theta_min = log(tau_min);
@@ -40,7 +40,8 @@ tau_discrete = exp(theta_discrete);
 delta_theta = theta_discrete(2) - theta_discrete(1);
 
 % 정규화 파라미터
-lambda = 0.204; 
+lambda = 8.29e-4;  % 최적화된 람다 값 (필요에 따라 조정 가능)
+%lambda = 1.2e-2;
 
 % Gamma에 대한 1차 차분 행렬 L_gamma 생성
 L_gamma = zeros(n-1, n);
@@ -64,6 +65,8 @@ soc_start_all = zeros(num_trips, 1);  % 각 트립의 시작 SOC 저장
 num_cols = ceil(sqrt(num_trips));
 num_rows = ceil(num_trips / num_cols);
 
+SOC0 = 0.7997;  % 전체 시뮬레이션의 초기 SOC 설정
+
 for s = 1:num_trips
     fprintf('Processing Trip %d/%d...\n', s, num_trips);
     
@@ -74,16 +77,12 @@ for s = 1:num_trips
     
     % 시간 간격 계산
     delta_t = [0; diff(t)];  % 시간 간격 계산 (초)
-    if length(delta_t) > 1
-        delta_t(1) = delta_t(2);  % 첫 번째 값이 0이면 두 번째 값으로 대체
-    else
-        delta_t(1) = 0.1;  % 데이터가 하나뿐인 경우 예외 처리
-    end
-
+    
+    delta_t(1) = delta_t(2);  % 첫 번째 값이 0이면 두 번째 값으로 대체
+ 
     % SOC 계산 (전류 적분)
-    SOC0 = 0.8;  % 초기 SOC 설정 (필요에 따라 조정 가능)
     Ah_consumed = cumsum(ik .* delta_t) / 3600;  % Ah로 변환
-    SOC = SOC0 + Ah_consumed / Q_batt;  % SOC 계산 (사용자 요청에 따라 수정)
+    SOC = SOC0 + Ah_consumed / Q_batt;  % SOC 계산
 
     % 각 트립의 시작 SOC 저장
     soc_start_all(s) = SOC(1);
@@ -246,5 +245,56 @@ for s = 1:num_trips
 
         hold off;
     end
+
+    % 다음 트립을 위한 SOC0 업데이트
+    SOC0 = SOC(end);  % 현재 트립의 마지막 SOC로 업데이트
+
+ 
 end
 
+%% 5. gamma(soc, theta)를 이용한 3D DRT 그래프 생성
+
+% soc_min과 soc_max를 정의합니다.
+soc_min = min(soc_start_all);
+soc_max = max(soc_start_all);
+
+% gamma_est_all의 최대값을 이용하여 z축 한계를 설정합니다.
+z_threshold = max(gamma_est_all(:)) * 1.1;  % 최대값의 110%로 설정
+
+figure(10);
+hold on;
+
+% 각 트립에 대해 3D 그래프를 플롯합니다.
+for s = 1:num_trips
+    % 데이터 준비
+    x_data = soc_start_all(s) * ones(size(theta_discrete));  % SOC 값
+    y_data = theta_discrete;                                 % θ 값
+    z_data = gamma_est_all(s, :)';                           % gamma 값
+    
+    % 3D 플롯
+    plot3(x_data, y_data, z_data, 'LineWidth', 1.5, 'Color', c_mat(mod(s-1,9)+1, :));
+end
+
+% 축 레이블 및 제목 설정
+xlabel('SOC', 'FontSize', labelFontSize);
+ylabel('$\theta = \ln(\tau \, [s])$', 'Interpreter', 'latex', 'FontSize', labelFontSize);
+zlabel('\gamma [\Omega]', 'FontSize', labelFontSize);
+title('3D DRT', 'FontSize', titleFontSize);
+
+% 컬러맵 및 컬러바 설정
+colormap(jet);
+c = colorbar;
+c.Label.String = 'SOC';
+caxis([soc_min soc_max]);
+
+% 축 한계 설정
+xlim([0 1]);
+ylim([min(theta_discrete) max(theta_discrete)]);
+zlim([0, z_threshold]);
+
+% 뷰 설정
+view(135, 30);
+grid on;
+
+set(gca, 'FontSize', axisFontSize);
+hold off;

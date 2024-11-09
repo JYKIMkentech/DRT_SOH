@@ -18,7 +18,7 @@ Q_batt = max(soc_ocv_cap(:, 3));  % Ah 단위
 %% 3. DRT 추정에 필요한 파라미터 설정
 n = 401;  % 이산 요소의 개수
 tau_min = 0.1;     % 최소 시간 상수 (초)
-tau_max = 2000;    % 최대 시간 상수 (초)
+tau_max = 2600;    % 최대 시간 상수 (초)
 
 % Theta 및 tau 값 계산
 theta_min = log(tau_min);
@@ -30,7 +30,7 @@ tau_discrete = exp(theta_discrete);
 delta_theta = theta_discrete(2) - theta_discrete(1);
 
 % 정규화 파라미터 람다 값 범위 설정 (로그 스케일로 10개의 값)
-lambda_values = logspace(-3, -2, 60);  % 필요에 따라 조정 가능
+lambda_values = logspace(-4, 1, 50);  % 필요에 따라 조정 가능
 
 % Gamma에 대한 1차 차분 행렬 L_gamma 생성
 L_gamma = zeros(n-1, n);
@@ -51,6 +51,8 @@ ik_all = cell(num_trips, 1);
 V_sd_all = cell(num_trips, 1);
 SOC_all = cell(num_trips, 1);
 
+SOC0 = 0.8;  % 전체 시뮬레이션의 초기 SOC 설정
+
 for s = 1:num_trips
     % 현재 트립의 데이터 추출
     t = trips(s).time_reset;
@@ -59,26 +61,24 @@ for s = 1:num_trips
     
     % 시간 간격 계산
     delta_t = [0; diff(t)];  % 시간 간격 계산 (초)
-    
+  
     delta_t(1) = delta_t(2);  % 첫 번째 값이 0이면 두 번째 값으로 대체
   
- 
     
     % SOC 계산 (전류 적분)
-    SOC0 = 0.8;  % 초기 SOC 설정 (필요에 따라 조정 가능)
     Ah_consumed = cumsum(ik .* delta_t) / 3600;  % Ah로 변환
     SOC = SOC0 + Ah_consumed / Q_batt;  % SOC 계산
-    
-    % SOC 범위 제한
-    SOC(SOC > 1) = 1;
-    SOC(SOC < 0) = 0;
     
     % 데이터 저장
     t_all{s} = t;
     ik_all{s} = ik;
     V_sd_all{s} = V_sd;
     SOC_all{s} = SOC;
+    
+    % 다음 트립을 위한 SOC0 업데이트
+    SOC0 = SOC(end);
 end
+
 
 %% 5. 교차 검증을 통한 람다 최적화
 
@@ -128,12 +128,12 @@ semilogx(optimal_lambda, cve_lambda(min_idx), 'ro', 'MarkerSize', 10, 'LineWidth
 
 % 최적 람다 텍스트 추가
 optimal_lambda_str = ['Optimal \lambda = ', num2str(optimal_lambda, '%.2e')];
-ylim([976.8, 977])
+%ylim([2.31, 10]);
 
 % 레이블 및 제목
 xlabel('\lambda (Regularization Parameter)', 'FontSize', 14);
 ylabel('Cross-Validation Error (CVE)', 'FontSize', 14);
-title('CVE vs. \lambda (Log Scale)', 'FontSize', 16);
+title('CVE vs. \lambda', 'FontSize', 16);
 
 % 그리드 및 범례
 grid on;
@@ -274,10 +274,11 @@ function V_est = predict_voltage(gamma_est, R0_est, ik, SOC, soc_values, ocv_val
     
     % 시간 간격 dt 계산
     delta_t = [0; diff(t)];
-    
-    delta_t(1) = delta_t(2);  % 첫 번째 값이 0이면 두 번째 값으로 대체
-   
-  
+    if length(delta_t) > 1
+        delta_t(1) = delta_t(2);  % 첫 번째 값이 0이면 두 번째 값으로 대체
+    else
+        delta_t(1) = 0.1;  % 데이터가 하나뿐인 경우 예외 처리
+    end
     
     % OCV 계산
     ocv_over_time = interp1(soc_values, ocv_values, SOC, 'linear', 'extrap');
