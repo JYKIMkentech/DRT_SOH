@@ -30,7 +30,7 @@ tau_discrete = exp(theta_discrete);
 delta_theta = theta_discrete(2) - theta_discrete(1);
 
 % 정규화 파라미터 람다 값 범위 설정 (로그 스케일로 10개의 값)
-lambda_values = logspace(-4, 2, 50);  % 필요에 따라 조정 가능
+lambda_values = logspace(-3, -2, 60);  % 필요에 따라 조정 가능
 
 % Gamma에 대한 1차 차분 행렬 L_gamma 생성
 L_gamma = zeros(n-1, n);
