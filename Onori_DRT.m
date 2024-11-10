@@ -14,16 +14,20 @@ c_mat = lines(9);  % 9개의 고유한 색상 정의
 % trips 데이터를 로드합니다.
 load('processed_10_trips_cycle14.mat', 'trips');  % 'trips' 구조체를 로드합니다.
 
+col_cell_label = {'W3','W4','W5','W7','W8','W9','W10','G1','V4','V5'};
+
+
 %% 2. SOC-OCV 데이터 로드
 % RPT_10_soc_ocv_cap.mat 파일에서 soc_ocv_cap 데이터를 로드합니다.
-load('RPT_10_soc_ocv_cap.mat', 'soc_ocv_cap');
+%load('RPT_10_soc_ocv_cap.mat', 'soc_ocv_cap');
+load('RPT_All_soc_ocv_cap.mat', 'soc_ocv_cap');
 
 % SOC와 OCV 값 추출
-soc_values = soc_ocv_cap(:, 1);  % SOC 값 (0 ~ 1)
-ocv_values = soc_ocv_cap(:, 2);  % OCV 값 (V)
+soc_values = soc_ocv_cap{10,8}(:, 1);  % SOC 값 (0 ~ 1)
+ocv_values = soc_ocv_cap{10,8}(:, 2);  % OCV 값 (V)
 
 % 배터리 용량 추출 (Capacity 열의 최대값)
-Q_batt = max(soc_ocv_cap(:, 3));  % Ah 단위
+Q_batt = max(soc_ocv_cap{10,8}(:, 3));  % Ah 단위
 
 %% 3. DRT 추정에 필요한 파라미터 설정
 n = 401;  % 이산 요소의 개수
@@ -40,7 +44,7 @@ tau_discrete = exp(theta_discrete);
 delta_theta = theta_discrete(2) - theta_discrete(1);
 
 % 정규화 파라미터
-lambda = 8.29e-4;  % 최적화된 람다 값 (필요에 따라 조정 가능)
+lambda = 1.6e-4;  % 최적화된 람다 값 (필요에 따라 조정 가능)
 %lambda = 1.2e-2;
 
 % Gamma에 대한 1차 차분 행렬 L_gamma 생성
