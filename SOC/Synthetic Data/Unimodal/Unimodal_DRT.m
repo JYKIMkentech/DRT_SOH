@@ -14,12 +14,12 @@ load('AS1.mat');  % 첫 번째 코드에서 저장한 A, T, ik_scenarios, t 변�
 n = 201;  % 이산화 요소의 개수
 dt = t(2) - t(1);  % 시간 간격
 num_scenarios = 10;  % 전류 시나리오의 수
-lambda = 0.51795;  % 정규화 파라미터
+lambda = 2.56;  % 정규화 파라미터
 
 %% DRT 
 
 mu_theta = log(10);       % 평균 값
-sigma_theta = 1;     % 표준편차 값
+sigma_theta = 1;          % 표준편차 값
 
 % 이산화된 theta 값들 (-3sigma부터 +3sigma까지)
 theta_min = mu_theta - 3*sigma_theta;
@@ -51,6 +51,16 @@ for i = 1:n-1
     L(i, i) = -1;
     L(i, i+1) = 1;
 end
+
+%% 그래프 스타일 설정
+axisFontSize = 14;
+titleFontSize = 12;
+legendFontSize = 12;
+labelFontSize = 12;
+
+%% 색상 매트릭스 정의 (시나리오 수에 맞게 확장 가능)
+% 여기서는 10개의 시나리오에 대해 서로 다른 색상을 정의합니다.
+c_mat = lines(num_scenarios);  % MATLAB의 기본 색상 매트릭스 사용
 
 %% 전압 합성 및 DRT 추정
 for s = 1:num_scenarios
@@ -130,39 +140,88 @@ for s = 1:num_scenarios
     %% 전압 및 DRT 비교 플롯
     figure(1);  
     subplot(5, 2, s);
+    
     yyaxis left
     plot(t, ik, 'b-', 'LineWidth', 1.5);
-    ylabel('Current (A)');
-    xlabel('Time (s)');
+    ylabel('Current (A)', 'FontSize', labelFontSize);
+    xlabel('Time (s)', 'FontSize', labelFontSize);
     grid on;
+    set(gca, 'FontSize', axisFontSize);
     
     yyaxis right
     plot(t, V_sd, 'r-', 'LineWidth', 1.5);
-    ylabel('Voltage (V)');
+    ylabel('Voltage (V)', 'FontSize', labelFontSize);
     ylim([min(V_sd)-0.1, max(V_sd)+0.1]);
+    set(gca, 'FontSize', axisFontSize);
     
     % 제목 업데이트 (올바른 진폭과 주기 포함)
     title(['Scenario ', num2str(s), ...
            ': A1=', num2str(A(s,1)), ', A2=', num2str(A(s,2)), ', A3=', num2str(A(s,3)), ...
-           ', T1=', num2str(T(s,1)), ', T2=', num2str(T(s,2)), ', T3=', num2str(T(s,3))]);
+           ', T1=', num2str(T(s,1)), ', T2=', num2str(T(s,2)), ', T3=', num2str(T(s,3))], ...
+           'FontSize', titleFontSize);
     
     % 범례 추가
-    legend({'Current (A)', 'Voltage (V)'}, 'Location', 'best');
+    legend({'Current (A)', 'Voltage (V)'}, 'Location', 'best', 'FontSize', legendFontSize);
     
-    % DRT 비교 플롯
+    %% DRT 비교 플롯
     figure(1 + s);  % 각 시나리오에 대한 DRT 비교 그림
     hold on;
     
     % 실제 gamma 플롯
-    plot(theta_discrete, gamma_discrete_true, 'k-', 'LineWidth', 1.5, 'DisplayName', 'True \gamma');
+    plot(theta_discrete, gamma_discrete_true, 'k-', 'LineWidth', 1.5, 'DisplayName', 'True gamma');
     
     % Quadprog로 구한 gamma 플롯
-    plot(theta_discrete, gamma_quadprog_all(s, :), ':', 'Color', 'g', 'LineWidth', 1.5, 'DisplayName', 'Quadprog \gamma');
+    plot(theta_discrete, gamma_quadprog_all(s, :), ':', 'Color', c_mat(s, :), 'LineWidth', 1.5, 'DisplayName', ['Scenario ', num2str(s)]);
     
     hold off;
-    xlabel('\theta = ln(\tau)');
-    ylabel('\gamma');
-    title(['DRT Comparison for Scenario ', num2str(s), ' (\lambda = ', num2str(lambda), ')']);
-    legend('Location', 'Best');
-    grid on;
+    xlabel('\theta = ln(\tau)', 'FontSize', labelFontSize);
+    ylabel('\gamma', 'FontSize', labelFontSize);
+    title(['DRT Comparison for Scenario ', num2str(s), ' (\lambda = ', num2str(lambda), ')'], ...
+          'FontSize', titleFontSize);
+    set(gca, 'FontSize', axisFontSize);
+    legend('Location', 'Best', 'FontSize', legendFontSize);
+    
 end
+
+%% 추가 그래프: Scenarios 6, 7, 8, 9
+
+% 선택된 시나리오
+selected_scenarios = [6, 7, 8, 9];
+
+% Figure 2: I(t)와 V(t) for Scenarios 6,7,8,9 as Subplots
+figure(2);
+for idx = 1:length(selected_scenarios)
+    s = selected_scenarios(idx);
+    subplot(2, 2, idx);
+    
+    yyaxis left
+    plot(t, ik_scenarios(s, :), 'Color', c_mat(s, :), 'LineWidth', 1.5);
+    ylabel('Current (A)', 'FontSize', labelFontSize);
+    yyaxis right
+    plot(t, V_sd_all(s, :), 'Color', c_mat(s, :), 'LineWidth', 1.5);
+    ylabel('Voltage (V)', 'FontSize', labelFontSize);
+    xlabel('Time (s)', 'FontSize', labelFontSize);
+    
+    title(['Scenario ', num2str(s)], 'FontSize', titleFontSize);
+    
+    legend({'Current (A)', 'Voltage (V)'}, 'Location', 'best', 'FontSize', legendFontSize);
+    
+    set(gca, 'FontSize', axisFontSize);
+end
+sgtitle('Unimodal: Current and Voltage vs Time', 'FontSize', titleFontSize);
+
+% Figure 3: gamma vs theta for Scenarios 6,7,8,9
+figure(3);
+hold on;
+for idx = 1:length(selected_scenarios)
+    s = selected_scenarios(idx);
+    plot(theta_discrete, gamma_quadprog_all(s, :), '--', 'LineWidth', 1.5, ...
+        'Color', c_mat(s, :), 'DisplayName', ['Scenario ', num2str(s)]);
+end
+plot(theta_discrete, gamma_discrete_true, 'k-', 'LineWidth', 2, 'DisplayName', 'True gamma');
+hold off;
+xlabel('\theta = ln(\tau [s])', 'FontSize', labelFontSize);
+ylabel('\gamma', 'FontSize', labelFontSize);
+title('Unimodal: Estimated gamma', 'FontSize', titleFontSize);
+set(gca, 'FontSize', axisFontSize);
+legend('Location', 'Best', 'FontSize', legendFontSize);

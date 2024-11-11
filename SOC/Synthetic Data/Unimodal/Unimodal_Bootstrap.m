@@ -12,7 +12,7 @@ load('AS1.mat');  % A, T, ik_scenarios, t 변수를 불러옵니다.
 %% Parameters 
 n = 40;  % 이산화 요소의 개수
 num_scenarios = 10;  % 전류 시나리오의 수
-lambda = 0.51795;  % 정규화 파라미터
+lambda = 0.58;  % 정규화 파라미터
 N_resample = 200;  % 부트스트랩 샘플 수
 
 %% DRT 
@@ -216,7 +216,7 @@ for s = 1:num_scenarios
     gamma_diff_lower = prctile(gamma_diff, 5, 1);  % 5% 백분위수
     gamma_diff_upper = prctile(gamma_diff, 95, 1); % 95% 백분위수
     
-    %% 전압 및 DRT 비교 플롯
+   
     %% 전압 및 DRT 비교 플롯
     figure(1);  
     subplot(5, 2, s);

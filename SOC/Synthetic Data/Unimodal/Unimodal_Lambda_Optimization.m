@@ -11,7 +11,7 @@ clc; clear; close all;
 load('AS1.mat');  % Load A, T, ik_scenarios, t variables
 
 %% Parameters 
-n = 201;  % Number of discrete elements
+n = 40;  % Number of discrete elements % Bootstrap figure 용 n = 40 : 0.518
 dt = t(2) - t(1);  % Time step based on loaded time vector
 num_scenarios = 10;  % Number of current scenarios
 lambda_values = logspace(-4, 9, 50);  % 람다 값 범위 설정
@@ -145,12 +145,12 @@ optimal_lambda = lambda_values(min_idx);
 semilogx(optimal_lambda, cve_lambda(min_idx), 'ro', 'MarkerSize', 10, 'LineWidth', 2);
 
 % 최적 \(\lambda\) 텍스트 추가
-optimal_lambda_str = ['최적 \lambda = ', num2str(optimal_lambda, '%.2e')];
+optimal_lambda_str = ['optimal \lambda = ', num2str(optimal_lambda, '%.2e')];
 
 % 레이블 및 제목
-xlabel('\lambda (정규화 파라미터)');
-ylabel('교차 검증 오류 (CVE)');
-title('로그 스케일 \lambda 에 따른 CVE 그래프');
+xlabel('\lambda (Hyperparameter)');
+ylabel('CVE');
+title('\lambda vs CVE (Unimodal) ');
 
 % 그리드 및 범례
 grid on;
