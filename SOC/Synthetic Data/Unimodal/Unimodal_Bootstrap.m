@@ -88,7 +88,7 @@ for s = 1:num_scenarios
         end
         V_est(k_idx) = OCV + R0 * ik_original(k_idx) + sum(V_RC(:, k_idx));
     end
-    
+
     % 현재 시나리오의 V_est 저장
     V_est_all(s, :) = V_est;  % 이 시나리오의 계산된 V_est 저장
     
@@ -211,7 +211,6 @@ for s = 1:num_scenarios
         end
     
         %% Quadprog를 이용한 정규화된 최소자승법 솔루션 (부트스트랩 데이터로)
-        % 상수 제거: OCV와 R0*ik를 빼줍니다.
         y_adjusted_bootstrap = V_sd_bootstrap' - OCV - R0 * ik_bootstrap_sorted';
     
         % Quadprog를 위한 행렬 및 벡터 구성
@@ -233,7 +232,7 @@ for s = 1:num_scenarios
     gamma_diff_lower = prctile(gamma_diff, 5, 1);  % 5% 백분위수
     gamma_diff_upper = prctile(gamma_diff, 95, 1); % 95% 백분위수
     
-    %% 전압 및 DRT 비교 플롯
+  
     %% 전압 및 DRT 비교 플롯
     figure(1);  
     subplot(5, 2, s);
@@ -248,7 +247,7 @@ for s = 1:num_scenarios
     ylabel('Voltage (V)');
     ylim([min(V_sd)-0.1, max(V_sd)+0.1]);
     
-    % 제목 업데이트 (올바른 진폭과 주기 포함)
+    % 제목 업데이트 
     title(['Scenario ', num2str(s), ...
            ': A1=', num2str(A(s,1)), ', A2=', num2str(A(s,2)), ', A3=', num2str(A(s,3)), ...
            ', T1=', num2str(T(s,1)), ', T2=', num2str(T(s,2)), ', T3=', num2str(T(s,3))]);
