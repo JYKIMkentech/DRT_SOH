@@ -11,7 +11,7 @@ clc; clear; close all;
 load('AS1.mat');  % Load A, T, ik_scenarios, t variables
 
 %% Parameters 
-n = 40;  % Number of discrete elements % Bootstrap figure 용 n = 40 : 0.518
+n = 201;  % Number of discrete elements
 dt = t(2) - t(1);  % Time step based on loaded time vector
 num_scenarios = 10;  % Number of current scenarios
 lambda_values = logspace(-4, 9, 50);  % 람다 값 범위 설정
@@ -19,9 +19,8 @@ lambda_values = logspace(-4, 9, 50);  % 람다 값 범위 설정
 %% 2. DRT 설정
 
 % True DRT Parameters (gamma_discrete)
-
 mu_theta = log(10);       % 계산된 평균 값
-sigma_theta = 1;     % 계산된 표준편차 값
+sigma_theta = 1;          % 계산된 표준편차 값
 
 % Discrete theta values (from -3sigma to +3sigma)
 theta_min = mu_theta - 3*sigma_theta;
@@ -145,17 +144,17 @@ optimal_lambda = lambda_values(min_idx);
 semilogx(optimal_lambda, cve_lambda(min_idx), 'ro', 'MarkerSize', 10, 'LineWidth', 2);
 
 % 최적 \(\lambda\) 텍스트 추가
-optimal_lambda_str = ['optimal \lambda = ', num2str(optimal_lambda, '%.2e')];
+optimal_lambda_str = ['최적 \lambda = ', num2str(optimal_lambda, '%.2e')];
 
 % 레이블 및 제목
-xlabel('\lambda (Hyperparameter)');
-ylabel('CVE');
-title('\lambda vs CVE (Unimodal) ');
+xlabel('\lambda (정규화 파라미터)');
+ylabel('교차 검증 오류 (CVE)');
+title('로그 스케일 \lambda 에 따른 CVE 그래프');
 
 % 그리드 및 범례
 grid on;
 set(gca, 'YScale', 'log');  % Y축 로그 스케일 설정
-ylim([1.9830, 1.9835]); % Y축 한계 조정 (데이터에 맞게 조정 가능)
+% ylim([1.9830, 1.9835]); % Y축 한계 조정 (데이터에 맞게 조정 가능)
 legend({'CVE', optimal_lambda_str}, 'Location', 'best');
 
 hold off;
@@ -218,8 +217,19 @@ function [gamma_estimated] = estimate_gamma(lambda, train_scenarios, ik_scenario
         y_total = [y_total; y_s];
     end
     
-    % 정규화된 최소자승법으로 gamma 추정
-    gamma_estimated = (W_total' * W_total + lambda * (L' * L)) \ (W_total' * y_total);
+    % Quadratic programming을 위한 행렬 및 벡터 구성
+    H = W_total' * W_total + lambda * (L' * L);
+    f = -W_total' * y_total;
+    
+    % 부등식 제약조건 설정: gamma >= 0  ==>  -I * gamma <= 0
+    A_ineq = -eye(length(tau_discrete));  % A = -I
+    b_ineq = zeros(length(tau_discrete), 1);  % b = 0
+    
+    % quadprog 옵션 설정
+    options = optimoptions('quadprog', 'Display', 'off');
+    
+    % quadprog를 사용하여 gamma 추정
+    gamma_estimated = quadprog(H, f, A_ineq, b_ineq, [], [], [], [], [], options);
     
 end
 
@@ -278,4 +288,5 @@ function V_predicted = predict_voltage(gamma_estimated, ik, tau_discrete, delta_
         V_predicted(k_idx) = OCV + R0 * ik(k_idx) + sum(V_RC(:, k_idx));
     end
 end
+
 

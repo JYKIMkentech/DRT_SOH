@@ -12,7 +12,7 @@ load('AS1.mat');  % A, T, ik_scenarios, t 변수를 불러옵니다.
 %% Parameters 
 n = 40;  % 이산화 요소의 개수
 num_scenarios = 10;  % 전류 시나리오의 수
-lambda = 0.58;  % 정규화 파라미터
+lambda = 0.51795;  % 정규화 파라미터
 N_resample = 200;  % 부트스트랩 샘플 수
 
 %% DRT 
@@ -124,7 +124,7 @@ for s = 1:num_scenarios
         end
     end
     
-    % 상수 제거: OCV와 R0*ik를 빼줍니다.
+   
     y_adjusted_original = V_sd' - OCV - R0 * ik_original';
     
     % Quadprog를 위한 행렬 및 벡터 구성
@@ -144,6 +144,7 @@ for s = 1:num_scenarios
     % 원본 데이터로부터 구한 gamma 저장
     gamma_original_all(s, :) = gamma_original';
     
+ 
     %% 부트스트랩을 통한 gamma 추정 (DRT Resample)
     gamma_resample = zeros(N_resample, n);  % 부트스트랩으로 추정한 gamma 저장
     
@@ -152,25 +153,46 @@ for s = 1:num_scenarios
         idx_bootstrap = randsample(length(t_original), length(t_original), true);
         t_bootstrap = t_original(idx_bootstrap);
         ik_bootstrap = ik_original(idx_bootstrap);
-        V_sd_bootstrap = V_sd(idx_bootstrap);
         
+    
         % 중복된 시간 점을 제거하고 고유한 시간 점 찾기
         [t_bootstrap_unique, unique_idx] = unique(t_bootstrap);
         ik_bootstrap_unique = ik_bootstrap(unique_idx);
-        V_sd_bootstrap_unique = V_sd_bootstrap(unique_idx);
-        
+    
         % 시간과 데이터를 시간 순서대로 정렬
         [t_bootstrap_sorted, sort_idx] = sort(t_bootstrap_unique);
         ik_bootstrap_sorted = ik_bootstrap_unique(sort_idx);
-        V_sd_bootstrap_sorted = V_sd_bootstrap_unique(sort_idx);
-        
+    
         % 시간 간격 계산
         if length(t_bootstrap_sorted) > 1
             dt_bootstrap = t_bootstrap_sorted(2:end) - t_bootstrap_sorted(1:end-1);  % dt(k) = t(k+1) - t(k)
         else
             dt_bootstrap = dt_original(1);  % 기본값으로 설정
         end
-        
+    
+        %% 부트스트랩된 모델 전압 계산
+        V_est_bootstrap = zeros(1, length(t_bootstrap_sorted));  % n-요소 모델을 통한 모델 전압 계산
+        V_RC_bootstrap = zeros(n, length(t_bootstrap_sorted));  % 각 요소의 전압
+    
+        for k_idx = 1:length(t_bootstrap_sorted)
+            if k_idx == 1
+                dt_k = dt_bootstrap(1);
+                for i = 1:n
+                    V_RC_bootstrap(i, k_idx) = gamma_discrete_true(i) * delta_theta * ik_bootstrap_sorted(k_idx) * (1 - exp(-dt_k / tau_discrete(i)));
+                end
+            else
+                dt_k = dt_bootstrap(k_idx-1);
+                for i = 1:n
+                    V_RC_bootstrap(i, k_idx) = V_RC_bootstrap(i, k_idx-1) * exp(-dt_k / tau_discrete(i)) + ...
+                                                gamma_discrete_true(i) * delta_theta * ik_bootstrap_sorted(k_idx) * (1 - exp(-dt_k / tau_discrete(i)));
+                end
+            end
+            V_est_bootstrap(k_idx) = OCV + R0 * ik_bootstrap_sorted(k_idx) + sum(V_RC_bootstrap(:, k_idx));
+        end
+    
+        % 노이즈 추가하여 V_sd_bootstrap 생성
+        V_sd_bootstrap = V_est_bootstrap + noise_level * randn(size(V_est_bootstrap));
+    
         %% W 행렬 구성 (정렬된 부트스트랩 데이터로)
         W_bootstrap = zeros(length(t_bootstrap_sorted), n);  % W 행렬 초기화
         for k_idx = 1:length(t_bootstrap_sorted)
@@ -179,35 +201,30 @@ for s = 1:num_scenarios
                 for i = 1:n
                     W_bootstrap(k_idx, i) = ik_bootstrap_sorted(k_idx) * (1 - exp(-dt_k / tau_discrete(i))) * delta_theta;
                 end
-            elseif k_idx < length(t_bootstrap_sorted)
-                dt_k = dt_bootstrap(k_idx);
-                for i = 1:n
-                    W_bootstrap(k_idx, i) = W_bootstrap(k_idx-1, i) * exp(-dt_k / tau_discrete(i)) + ...
-                                      ik_bootstrap_sorted(k_idx) * (1 - exp(-dt_k / tau_discrete(i))) * delta_theta;
-                end
             else
-                dt_k = dt_bootstrap(end);
+                dt_k = dt_bootstrap(k_idx-1);
                 for i = 1:n
                     W_bootstrap(k_idx, i) = W_bootstrap(k_idx-1, i) * exp(-dt_k / tau_discrete(i)) + ...
-                                      ik_bootstrap_sorted(k_idx) * (1 - exp(-dt_k / tau_discrete(i))) * delta_theta;
+                                          ik_bootstrap_sorted(k_idx) * (1 - exp(-dt_k / tau_discrete(i))) * delta_theta;
                 end
             end
         end
-        
+    
         %% Quadprog를 이용한 정규화된 최소자승법 솔루션 (부트스트랩 데이터로)
         % 상수 제거: OCV와 R0*ik를 빼줍니다.
-        y_adjusted_bootstrap = V_sd_bootstrap_sorted' - OCV - R0 * ik_bootstrap_sorted';
-        
+        y_adjusted_bootstrap = V_sd_bootstrap' - OCV - R0 * ik_bootstrap_sorted';
+    
         % Quadprog를 위한 행렬 및 벡터 구성
         H = 2 * (W_bootstrap' * W_bootstrap + lambda * (L' * L));
         f = -2 * W_bootstrap' * y_adjusted_bootstrap;
-        
+    
         % Quadprog를 사용하여 최적화 문제 해결
         gamma_quadprog = quadprog(H, f, A_ineq, b_ineq, [], [], [], [], [], options);
-        
+    
         %% 부트스트랩으로 구한 gamma 저장
         gamma_resample(b, :) = gamma_quadprog';
     end
+
     
     %% gamma 차이 계산 및 신뢰 구간 구하기
     gamma_diff = gamma_resample - gamma_original';  % 각 세타에 대해 차이 계산
@@ -216,7 +233,7 @@ for s = 1:num_scenarios
     gamma_diff_lower = prctile(gamma_diff, 5, 1);  % 5% 백분위수
     gamma_diff_upper = prctile(gamma_diff, 95, 1); % 95% 백분위수
     
-   
+    %% 전압 및 DRT 비교 플롯
     %% 전압 및 DRT 비교 플롯
     figure(1);  
     subplot(5, 2, s);
@@ -266,8 +283,5 @@ for s = 1:num_scenarios
     xlabel('\theta = ln(\tau)');
     ylabel('\gamma');
     title(['DRT Comparison for Scenario ', num2str(s), ' (\lambda = ', num2str(lambda), ')']);
-    legend('True', 'Est', 'Location', 'Best');  % 레전드를 "True"와 "Est"로 설정
-
-
-    
+    legend('True', 'Est', 'Location', 'Best'); 
 end
