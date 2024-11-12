@@ -1,4 +1,4 @@
-clc; clear; close all;
+개clc; clear; close all;
 %%
 
 % 세타 (ln (tau)) 가 정규분포를 따른다 ---> tau는 로그정규분포를 따른다. 
@@ -7,8 +7,9 @@ clc; clear; close all;
 % gamma(theta) = [ R(exp(theta)) * exp(theta) ] = [ R(tau) * tau ] (y축)
 % R_i = gamma_i * delta theta % 면적은 저항 = gamma (세로) * delta (가로, 일정하게)
 
-%% AS1.mat 파일 로드
-load('AS1.mat');  % 첫 번째 코드에서 저장한 A, T, ik_scenarios, t 변수를 불러옵니다.
+%% AS1_per1.mat 같은 4가지 파일 로드
+%file_path = 'G:\공유 드라이브\Battery Software Lab\Projects\DRT\SD\';
+load("AS1.mat")
 
 %% Parameters 
 n = 201;  % 이산화 요소의 개수
