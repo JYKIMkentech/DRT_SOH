@@ -9,7 +9,7 @@ save_path = 'G:\공유 드라이브\Battery Software Lab\Projects\DRT\SD\';
 %% Parameters
 num_scenarios = 10;  % Number of scenarios
 num_waves = 3;       % Number of sine waves per scenario
-t = linspace(0, 1000, 10000)';  % Time vector (0~1000 seconds, 10000 sample points)
+t = linspace(0, 1000, 10001)';  % Time vector (0~1000 seconds, 10000 sample points)
 dt = t(2) - t(1);
 n = 201; % Number of RC elements
 
