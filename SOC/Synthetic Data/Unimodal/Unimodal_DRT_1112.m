@@ -2,7 +2,7 @@ clc; clear; close all;
 
 %% Description
  
-% True n = 201;
+% True n = 201; GENDATA
 
 %% Graphic 
 
@@ -14,7 +14,7 @@ labelFontSize = 12;
 %% load
 
 file_path = 'G:\공유 드라이브\Battery Software Lab\Projects\DRT\SD\';
-mat_files = dir(fullfile(file_path, '*.mat'));
+mat_files = dir(fullfile(file_path, '*.mat')); % AS1,2 , True Gamma (uni,bi)
 
 for file = mat_files'
     load(fullfile(file_path, file.name));
@@ -22,17 +22,21 @@ end
 
 %% Parameter
 
+% lambda 바꾸기 ( cve )
 AS_structs = {AS1_1per, AS1_2per, AS2_1per, AS2_2per};
 AS_names = {'AS1_1per', 'AS1_2per', 'AS2_1per', 'AS2_2per'};
 Gamma_structs = {Gamma_unimodal, Gamma_unimodal, Gamma_bimodal, Gamma_bimodal};
 lambda_values = [2.56, 2.56, 2.56, 2.56];  % 각 경우에 대한 람다 값
-AS_num = numel(AS_structs);
+
+AS_num = length(AS_structs);
 num_scenarios = length(AS1_1per);  % 시나리오 수  = 10개 
 c_mat = lines(num_scenarios);  % 시나리오 수에 따라 색상 매트릭스 생성
 n = length(Gamma_bimodal.theta);  % RC 요소의 개수 (Base = 201개)
 OCV = 0;
 R0 = 0.1;
 dt = AS1_1per(1).t(2)-AS1_1per(1).t(1);
+t = AS1_1per(1).t;
+    
 
   % 일차 차분 행렬 L 생성 (정규화에 사용)
 L = zeros(n-1, n);
@@ -49,7 +53,6 @@ for m = 1:AS_num
     AS_name = AS_names{m};
     Gamma_data = Gamma_structs{m};
     lambda = lambda_values(m);
-    t = AS_data(1).t;
     
     % theta 및 tau 설정
     theta_discrete = Gamma_data.theta';
