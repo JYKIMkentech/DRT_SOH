@@ -43,7 +43,7 @@ end
 
 % Unimodal
 mu_theta_uni = log(10);
-sigma_theta_uni = 1;
+sigma_theta_uni = 1.536;
 theta_min_uni = mu_theta_uni - 3*sigma_theta_uni;
 theta_max_uni = mu_theta_uni + 3*sigma_theta_uni;
 theta_discrete_uni = linspace(theta_min_uni, theta_max_uni, n);
