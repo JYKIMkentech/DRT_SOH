@@ -76,14 +76,12 @@ gamma2 = (1 / (sigma_theta2 * sqrt(2 * pi))) * exp(- (theta_discrete_bi - mu_the
 gamma_discrete_true_bimodal = gamma1 + gamma2;
 gamma_discrete_true_bimodal = gamma_discrete_true_bimodal / max(gamma_discrete_true_bimodal);
 
-
-
-
 %% Initialize Structs
-AS1_1per = struct('V', {}, 'I', {}, 't', {} );
-AS1_2per = struct('V', {}, 'I', {}, 't', {} );
-AS2_1per = struct('V', {}, 'I', {}, 't', {} );
-AS2_2per = struct('V', {}, 'I', {}, 't', {} );
+% `SN` 필드를 가장 앞에 정의하여 구조체의 첫 번째 필드로 설정
+AS1_1per = struct('SN', {}, 'V', {}, 'I', {}, 't', {});
+AS1_2per = struct('SN', {}, 'V', {}, 'I', {}, 't', {});
+AS2_1per = struct('SN', {}, 'V', {}, 'I', {}, 't', {});
+AS2_2per = struct('SN', {}, 'V', {}, 'I', {}, 't', {});
 
 %% Voltage Calculation (Unimodal)
 gamma_discrete_true = gamma_discrete_true_unimodal;
@@ -118,18 +116,18 @@ for s = 1:num_scenarios
     noise_level = 0.01;
     V_sd_1per = V_est + noise_level .* V_est .* randn(size(V_est));
 
-    % Add noise (2%) - Corrected variable name from 'nnoise_level' to 'noise_level'
+    % Add noise (2%)
     noise_level = 0.02;
     V_sd_2per = V_est + noise_level .* V_est .* randn(size(V_est));
 
-    % Save data
+    % Save data with SN field
+    AS1_1per(s).SN = s;          % 시나리오 번호 추가 (가장 앞에 위치)
     AS1_1per(s).V = V_sd_1per;
-    AS1_1per(s).V_est = V_est;
     AS1_1per(s).I = ik;
     AS1_1per(s).t = t;
 
+    AS1_2per(s).SN = s;          % 시나리오 번호 추가 (가장 앞에 위치)
     AS1_2per(s).V = V_sd_2per;
-    AS1_2per(s).V_est = V_est;
     AS1_2per(s).I = ik;
     AS1_2per(s).t = t;
 end
@@ -172,14 +170,14 @@ for s = 1:num_scenarios
     noise_level = 0.02;
     V_sd_2per = V_est + noise_level .* V_est .* randn(size(V_est));
     
-    % Save data
+    % Save data with SN field
+    AS2_1per(s).SN = s;          % 시나리오 번호 추가 (가장 앞에 위치)
     AS2_1per(s).V = V_sd_1per;
-    AS2_1per(s).V_est = V_est;
     AS2_1per(s).I = ik;
     AS2_1per(s).t = t;
 
+    AS2_2per(s).SN = s;          % 시나리오 번호 추가 (가장 앞에 위치)
     AS2_2per(s).V = V_sd_2per;
-    AS2_2per(s).V_est = V_est;
     AS2_2per(s).I = ik;
     AS2_2per(s).t = t;
 end
@@ -219,7 +217,7 @@ for case_idx = 1:length(struct_cases)
         ylabel('Voltage (V)', 'FontSize', 12);
         
         xlabel('Time (s)', 'FontSize', 12);
-        title(['Scenario ', num2str(s)], 'FontSize', 14);
+        title(['Scenario ', num2str(current_case(s).SN)], 'FontSize', 14);  % 시나리오 번호 사용
         legend('Current', 'Voltage', 'Location', 'best');
         hold off;
     end
@@ -235,17 +233,15 @@ Gamma_unimodal.gamma = gamma_discrete_true_unimodal';
 Gamma_bimodal.theta = theta_discrete_bi';
 Gamma_bimodal.gamma = gamma_discrete_true_bimodal';
 
-
 % Unimodal
-figure(5);
+figure;
 plot(Gamma_unimodal.theta, Gamma_unimodal.gamma, 'b-', 'LineWidth', 1.5);
 xlabel('\theta');
 ylabel('\gamma');
 title('Unimodal \gamma vs \theta');
 
-
 % Bimodal
-figure(6);
+figure;
 plot(Gamma_bimodal.theta, Gamma_bimodal.gamma, 'r-', 'LineWidth', 1.5);
 xlabel('\theta');
 ylabel('\gamma');
@@ -254,7 +250,7 @@ title('Bimodal \gamma vs \theta');
 
 %% Save
 
-% Save the current,voltage scenarios
+% Save the current, voltage scenarios
 save(fullfile(save_path, 'AS1_1per.mat'), 'AS1_1per');
 save(fullfile(save_path, 'AS1_2per.mat'), 'AS1_2per');
 save(fullfile(save_path, 'AS2_1per.mat'), 'AS2_1per');
@@ -263,4 +259,5 @@ save(fullfile(save_path, 'AS2_2per.mat'), 'AS2_2per');
 % Save the True Gamma vs theta
 save(fullfile(save_path, 'Gamma_unimodal.mat'), 'Gamma_unimodal');
 save(fullfile(save_path, 'Gamma_bimodal.mat'), 'Gamma_bimodal');
+
 
