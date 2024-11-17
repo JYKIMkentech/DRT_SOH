@@ -1,4 +1,4 @@
-clc;clear;close all;
+clc; clear; close all;
 
 %% 0. 폰트 크기 및 색상 매트릭스 설정
 % Font size settings
@@ -16,10 +16,9 @@ load('G:\공유 드라이브\BSL_Onori\Cycling_tests\Trips_Aging_1_W10.mat');  %
 
 col_cell_label = {'W3','W4','W5','W7','W8','W9','W10','G1','V4','V5'};
 
-
 %% 2. SOC-OCV 데이터 로드
 % RPT_10_soc_ocv_cap.mat 파일에서 soc_ocv_cap 데이터를 로드합니다.
-%load('RPT_10_soc_ocv_cap.mat', 'soc_ocv_cap');
+% load('RPT_10_soc_ocv_cap.mat', 'soc_ocv_cap');
 load('RPT_All_soc_ocv_cap.mat', 'soc_ocv_cap');
 
 % SOC와 OCV 값 추출
@@ -44,8 +43,8 @@ tau_discrete = exp(theta_discrete);
 delta_theta = theta_discrete(2) - theta_discrete(1);
 
 % 정규화 파라미터
-lambda = 10;  % 최적화된 람다 값 (필요에 따라 조정 가능)
-%lambda = 1.2e-2;
+lambda = 0.01;  % 최적화된 람다 값 (필요에 따라 조정 가능)
+% lambda = 1.2e-2;
 
 % Gamma에 대한 1차 차분 행렬 L_gamma 생성
 L_gamma = zeros(n-1, n);
@@ -69,7 +68,10 @@ soc_start_all = zeros(num_trips, 1);  % 각 트립의 시작 SOC 저장
 num_cols = ceil(sqrt(num_trips));
 num_rows = ceil(num_trips / num_cols);
 
-SOC0 = 0.79;  % 전체 시뮬레이션의 초기 SOC 설정
+SOC0 = 0.78;  % 전체 시뮬레이션의 초기 SOC 설정
+
+% V_RC_end를 초기화 (첫 번째 트립의 시작 시점에는 0으로 설정)
+V_RC_end = zeros(n, 1);
 
 for s = 3:num_trips
     fprintf('Processing Trip %d/%d...\n', s, num_trips);
@@ -81,9 +83,10 @@ for s = 3:num_trips
     
     % 시간 간격 계산
     delta_t = [0; diff(t)];  % 시간 간격 계산 (초)
+    if delta_t(1) == 0
+        delta_t(1) = delta_t(2);  % 첫 번째 값이 0이면 두 번째 값으로 대체
+    end
     
-    delta_t(1) = delta_t(2);  % 첫 번째 값이 0이면 두 번째 값으로 대체
- 
     % SOC 계산 (전류 적분)
     Ah_consumed = cumsum(ik .* delta_t) / 3600;  % Ah로 변환
     SOC = SOC0 + Ah_consumed / Q_batt;  % SOC 계산
@@ -145,12 +148,13 @@ for s = 3:num_trips
     %% 4.4 V_est 계산 (검증용)
     % V_RC 및 V_est 초기화
     V_RC = zeros(n, length(t));  % 각 요소의 전압
+    V_RC(:, 1) = V_RC_end;       % 이전 트립의 마지막 V_RC로 초기화
     V_est = zeros(length(t), 1);
+
     for k_idx = 1:length(t)
         if k_idx == 1
-            for i = 1:n
-                V_RC(i, k_idx) = gamma_est(i) * delta_theta * ik(k_idx) * (1 - exp(-delta_t(k_idx) / tau_discrete(i)));
-            end
+            % 첫 번째 스텝에서는 V_RC(:,1)이 이미 초기화되어 있음
+            % V_RC(:,1)을 사용하여 V_est 계산
         else
             for i = 1:n
                 V_RC(i, k_idx) = V_RC(i, k_idx-1) * exp(-delta_t(k_idx) / tau_discrete(i)) + ...
@@ -160,6 +164,9 @@ for s = 3:num_trips
         % 시간 k_idx에서의 V_est 계산
         V_est(k_idx) = ocv_over_time(k_idx) + R0_est * ik(k_idx) + sum(V_RC(:, k_idx));
     end
+
+    % 현재 트립의 마지막 V_RC를 저장하여 다음 트립의 초기 값으로 사용
+    V_RC_end = V_RC(:, end);
 
     %% 4.5 DRT Gamma 그래프 출력
     % Figure 1: DRT Gamma 서브플롯
@@ -212,7 +219,7 @@ for s = 3:num_trips
         % R0 추정값을 그래프에 텍스트로 추가
         x_text = min(theta_discrete);
         y_text = max(gamma_est_all(3, :));
-        text(x_text, y_text, sprintf('R₀ = %.3e Ω', R0_est_all(1)), ...
+        text(x_text, y_text, sprintf('R₀ = %.3e Ω', R0_est_all(3)), ...
             'FontSize', 12, 'Color', 'k', 'FontWeight', 'bold', 'HorizontalAlignment', 'left', 'VerticalAlignment', 'top');
 
         hold off;
@@ -252,13 +259,12 @@ for s = 3:num_trips
     % 다음 트립을 위한 SOC0 업데이트
     SOC0 = SOC(end);  % 현재 트립의 마지막 SOC로 업데이트
 
- 
 end
 
 %% 5. gamma(soc, theta)를 이용한 3D DRT 그래프 생성
 
 % soc_min과 soc_max를 정의합니다.
-soc_min = min(soc_start_all);
+soc_min = min(soc_start_all(soc_start_all > 0));  % 0보다 큰 값만 고려
 soc_max = max(soc_start_all);
 
 % gamma_est_all의 최대값을 이용하여 z축 한계를 설정합니다.

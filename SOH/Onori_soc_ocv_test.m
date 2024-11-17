@@ -4,8 +4,8 @@ clc; clear; close all;
 load('G:\공유 드라이브\BSL_Onori\diagnostic_tests\_processed_mat\capacity_test.mat');
 
 % 10번째 사이클의 9번째 셀 데이터 추출
-cycle_num = 10;  % 사이클 번호
-cell_num = 9;    % 셀 번호
+cycle_num = 14;  % 사이클 번호
+cell_num = 7;    % 셀 번호
 
 % 용량, 전류, 시간, 셀 전압 데이터 추출
 cap_data = cap{cycle_num, cell_num};       % 누적 용량 데이터 (Ah)
