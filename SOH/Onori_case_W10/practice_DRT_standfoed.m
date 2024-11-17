@@ -23,16 +23,16 @@ col_cell_label = {'W3','W4','W5','W7','W8','W9','W10','G1','V4','V5'};
 load('RPT_All_soc_ocv_cap.mat', 'soc_ocv_cap');
 
 % SOC와 OCV 값 추출
-soc_values = soc_ocv_cap{1,7}(:, 1);  % SOC 값 (0 ~ 1)
-ocv_values = soc_ocv_cap{1,7}(:, 2);  % OCV 값 (V)
+soc_values = soc_ocv_cap{14,7}(:, 1);  % SOC 값 (0 ~ 1)
+ocv_values = soc_ocv_cap{14,7}(:, 2);  % OCV 값 (V)
 
 % 배터리 용량 추출 (Capacity 열의 최대값)
-Q_batt = max(soc_ocv_cap{1,7}(:, 3));  % Ah 단위
+Q_batt = max(soc_ocv_cap{14,7}(:, 3));  % Ah 단위
 
 %% 3. DRT 추정에 필요한 파라미터 설정
 n = 401;  % 이산 요소의 개수
 tau_min = 0.1;     % 최소 시간 상수 (초)
-tau_max = 2610;    % 최대 시간 상수 (초)
+tau_max = 2600;    % 최대 시간 상수 (초)
 
 % Theta 및 tau 값 계산
 theta_min = log(tau_min);
@@ -44,7 +44,7 @@ tau_discrete = exp(theta_discrete);
 delta_theta = theta_discrete(2) - theta_discrete(1);
 
 % 정규화 파라미터
-lambda = 10;  % 최적화된 람다 값 (필요에 따라 조정 가능)
+lambda = 1.6e-1;  % 최적화된 람다 값 (필요에 따라 조정 가능)
 %lambda = 1.2e-2;
 
 % Gamma에 대한 1차 차분 행렬 L_gamma 생성
@@ -58,6 +58,7 @@ end
 L_aug = [L_gamma, zeros(n-1, 1)];
 
 %% 4. 각 트립에 대한 DRT 추정 (quadprog 사용)
+
 num_trips = length(Trips);
 
 % 결과 저장을 위한 배열 사전 할당
@@ -69,7 +70,7 @@ soc_start_all = zeros(num_trips, 1);  % 각 트립의 시작 SOC 저장
 num_cols = ceil(sqrt(num_trips));
 num_rows = ceil(num_trips / num_cols);
 
-SOC0 = 0.79;  % 전체 시뮬레이션의 초기 SOC 설정
+SOC0 = 0.8;  % 전체 시뮬레이션의 초기 SOC 설정
 
 for s = 3:num_trips
     fprintf('Processing Trip %d/%d...\n', s, num_trips);
@@ -117,8 +118,9 @@ for s = 3:num_trips
     y = y(:);  % y를 열 벡터로 변환
 
     %% 4.3 quadprog를 사용한 제약 조건 하의 추정
-    H = 2 * (W_aug' * W_aug + lambda * (L_aug' * L_aug));
-    f = -2 * W_aug' * y;
+    % 비용 함수: 0.5 * Theta' * H * Theta + f' * Theta
+    H = (W_aug' * W_aug + lambda * (L_aug' * L_aug));
+    f = -W_aug' * y;
 
     % 제약 조건: Theta >= 0 (gamma와 R0는 0 이상)
     A = -eye(n+1);
@@ -255,49 +257,9 @@ for s = 3:num_trips
  
 end
 
-%% 5. gamma(soc, theta)를 이용한 3D DRT 그래프 생성
 
-% soc_min과 soc_max를 정의합니다.
-soc_min = min(soc_start_all);
-soc_max = max(soc_start_all);
 
-% gamma_est_all의 최대값을 이용하여 z축 한계를 설정합니다.
-z_threshold = max(gamma_est_all(:)) * 1.1;  % 최대값의 110%로 설정
 
-figure(10);
-hold on;
 
-% 각 트립에 대해 3D 그래프를 플롯합니다.
-for s = 3:num_trips
-    % 데이터 준비
-    x_data = soc_start_all(s) * ones(size(theta_discrete));  % SOC 값
-    y_data = theta_discrete;                                 % θ 값
-    z_data = gamma_est_all(s, :)';                           % gamma 값
-    
-    % 3D 플롯
-    plot3(x_data, y_data, z_data, 'LineWidth', 1.5, 'Color', c_mat(mod(s-1,9)+1, :));
-end
 
-% 축 레이블 및 제목 설정
-xlabel('SOC', 'FontSize', labelFontSize);
-ylabel('$\theta = \ln(\tau \, [s])$', 'Interpreter', 'latex', 'FontSize', labelFontSize);
-zlabel('\gamma [\Omega]', 'FontSize', labelFontSize);
-title('3D DRT', 'FontSize', titleFontSize);
 
-% 컬러맵 및 컬러바 설정
-colormap(jet);
-c = colorbar;
-c.Label.String = 'SOC';
-caxis([soc_min soc_max]);
-
-% 축 한계 설정
-xlim([0 1]);
-ylim([min(theta_discrete) max(theta_discrete)]);
-zlim([0, z_threshold]);
-
-% 뷰 설정
-view(135, 30);
-grid on;
-
-set(gca, 'FontSize', axisFontSize);
-hold off;
