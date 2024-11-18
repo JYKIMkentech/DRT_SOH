@@ -96,6 +96,10 @@ for dataset_idx = 1:length(dataset_names)
     Trips(2) = data(Discharge_first_indice);
     % Trips(3)부터 UDDS 사이클 데이터가 들어감
     
+    %% time_reset 필드 추가 for Trips(1) and Trips(2)
+    Trips(1).time_reset = Trips(1).t - Trips(1).t(1);
+    Trips(2).time_reset = Trips(2).t - Trips(2).t(1);
+    
     %% UDDS 데이터 파싱 및 Trips 구조체 배열 채우기
     % Primary 데이터 가져오기
     primary_data = data(Primary_first_indice);

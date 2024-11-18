@@ -1,23 +1,24 @@
 clc; clear; close all;
 
 %% 0. 폰트 크기 및 색상 매트릭스 설정
-% 폰트 크기 설정
+% Font size settings
 axisFontSize = 14;      % 축의 숫자 크기
 titleFontSize = 16;     % 제목의 폰트 크기
 legendFontSize = 12;    % 범례의 폰트 크기
 labelFontSize = 14;     % xlabel 및 ylabel의 폰트 크기
 
-% 색상 매트릭스 설정
+% Color matrix 설정
 c_mat = lines(9);  % 9개의 고유한 색상 정의
 
-%% 1. 트립 데이터 로드
-% 'Trips' 구조체를 로드합니다.
-load('G:\공유 드라이브\BSL_Onori\Cycling_tests\Trips_Aging_1_W10.mat');  % 'Trips' 구조체를 로드합니다.
+%% 1. trips 데이터 로드
+% trips 데이터를 로드합니다.
+load('G:\공유 드라이브\BSL_Onori\Cycling_tests\Trips_Aging_1_W10.mat');  % 'trips' 구조체를 로드합니다.
 
 col_cell_label = {'W3','W4','W5','W7','W8','W9','W10','G1','V4','V5'};
 
 %% 2. SOC-OCV 데이터 로드
-% 'soc_ocv_cap' 데이터를 로드합니다.
+% RPT_10_soc_ocv_cap.mat 파일에서 soc_ocv_cap 데이터를 로드합니다.
+% load('RPT_10_soc_ocv_cap.mat', 'soc_ocv_cap');
 load('RPT_All_soc_ocv_cap.mat', 'soc_ocv_cap');
 
 % SOC와 OCV 값 추출
@@ -42,7 +43,8 @@ tau_discrete = exp(theta_discrete);
 delta_theta = theta_discrete(2) - theta_discrete(1);
 
 % 정규화 파라미터
-lambda = 10;  % 최적화된 람다 값 (필요에 따라 조정 가능)
+lambda = 0.01;  % 최적화된 람다 값 (필요에 따라 조정 가능)
+% lambda = 1.2e-2;
 
 % Gamma에 대한 1차 차분 행렬 L_gamma 생성
 L_gamma = zeros(n-1, n);
@@ -62,32 +64,22 @@ gamma_est_all = zeros(num_trips, n);
 R0_est_all = zeros(num_trips, 1);
 soc_start_all = zeros(num_trips, 1);  % 각 트립의 시작 SOC 저장
 
-% 각 트립의 W, V_RC, OCV, V_est를 저장할 셀 배열 생성
-W_all = cell(num_trips, 1);
-V_RC_all = cell(num_trips, 1);
-OCV_all = cell(num_trips, 1);
-V_est_all = cell(num_trips, 1);
-
 % 서브플롯 그리드 크기 계산
 num_cols = ceil(sqrt(num_trips));
 num_rows = ceil(num_trips / num_cols);
 
-% 초기 SOC 설정
-SOC0 = 1;  % (soc-ocv table에서 4.189v - soc 1 ), but 1시간 방전 후 마지막 voltage 4.1939 V
+SOC0 = 0.78;  % 전체 시뮬레이션의 초기 SOC 설정
 
-% V_RC_end와 W_end를 초기화 (첫 번째 트립의 시작 시점에는 0으로 설정)
+% V_RC_end를 초기화 (첫 번째 트립의 시작 시점에는 0으로 설정)
 V_RC_end = zeros(n, 1);
-W_end = zeros(1, n);
 
-% 루프를 s = 2부터 시작 
-for s = 2:num_trips
+for s = 3:num_trips
     fprintf('Processing Trip %d/%d...\n', s, num_trips);
     
     % 현재 트립의 데이터 추출
     t = Trips(s).time_reset;
     ik = Trips(s).I;
     V_sd = Trips(s).V;
-    
     
     % 시간 간격 계산
     delta_t = [0; diff(t)];  % 시간 간격 계산 (초)
@@ -111,8 +103,7 @@ for s = 2:num_trips
     for k_idx = 1:length(t)
         for i = 1:n
             if k_idx == 1
-                W(k_idx, i) = W_end(i) * exp(-delta_t(k_idx) / tau_discrete(i)) + ...
-                              ik(k_idx) * (1 - exp(-delta_t(k_idx) / tau_discrete(i))) * delta_theta;
+                W(k_idx, i) = ik(k_idx) * (1 - exp(-delta_t(k_idx) / tau_discrete(i))) * delta_theta;
             else
                 W(k_idx, i) = W(k_idx-1, i) * exp(-delta_t(k_idx) / tau_discrete(i)) + ...
                               ik(k_idx) * (1 - exp(-delta_t(k_idx) / tau_discrete(i))) * delta_theta;
@@ -161,11 +152,11 @@ for s = 2:num_trips
     V_est = zeros(length(t), 1);
 
     for k_idx = 1:length(t)
-        for i = 1:n
-            if k_idx == 1
-                V_RC(i, k_idx) = V_RC_end(i) * exp(-delta_t(k_idx) / tau_discrete(i)) + ...
-                                 gamma_est(i) * delta_theta * ik(k_idx) * (1 - exp(-delta_t(k_idx) / tau_discrete(i)));
-            else
+        if k_idx == 1
+            % 첫 번째 스텝에서는 V_RC(:,1)이 이미 초기화되어 있음
+            % V_RC(:,1)을 사용하여 V_est 계산
+        else
+            for i = 1:n
                 V_RC(i, k_idx) = V_RC(i, k_idx-1) * exp(-delta_t(k_idx) / tau_discrete(i)) + ...
                                  gamma_est(i) * delta_theta * ik(k_idx) * (1 - exp(-delta_t(k_idx) / tau_discrete(i)));
             end
@@ -176,15 +167,6 @@ for s = 2:num_trips
 
     % 현재 트립의 마지막 V_RC를 저장하여 다음 트립의 초기 값으로 사용
     V_RC_end = V_RC(:, end);
-
-    % 현재 트립의 마지막 W를 저장하여 다음 트립의 초기 값으로 사용
-    W_end = W(end, :);
-
-    %% 각 트립의 W, V_RC, OCV, V_est를 저장
-    W_all{s} = W;
-    V_RC_all{s} = V_RC;
-    OCV_all{s} = ocv_over_time;
-    V_est_all{s} = V_est;
 
     %% 4.5 DRT Gamma 그래프 출력
     % Figure 1: DRT Gamma 서브플롯
@@ -251,15 +233,15 @@ for s = 2:num_trips
     set(gca, 'FontSize', axisFontSize);
     hold off;
 
-    %% 4.7 Trip 3에 대한 별도의 Gamma 그래프 추가
-    % Trip 3의 gamma 그래프를 별도의 큰 그림으로 플롯합니다.
+    %% 4.7 Trip 1에 대한 별도의 Gamma 그래프 추가
+    % Trip 1의 gamma 그래프를 별도의 큰 그림으로 플롯합니다.
     if s == 3
         figure(5);  % 새로운 figure 생성
         set(gcf, 'Position', [100, 100, 800, 600]);  % Figure 크기 조정
         plot(theta_discrete, gamma_est_all(3, :), 'LineWidth', 3, 'Color', c_mat(1, :));
         xlabel('$\theta = \ln(\tau \, [s])$', 'Interpreter', 'latex', 'FontSize', labelFontSize)
         ylabel('\gamma [\Omega]', 'FontSize', labelFontSize);
-        title('Trip 3 : DRT ', 'FontSize', titleFontSize);
+        title('Trip 1 : DRT ', 'FontSize', titleFontSize);
         hold on;
 
         % R0 추정값을 그래프에 텍스트로 추가
@@ -270,7 +252,7 @@ for s = 2:num_trips
 
         hold off;
 
-        %% 4.8 Trip 3에 대한 I, V, V_model vs t 그래프 추가
+        %% 4.8 Trip 1에 대한 I, V, V_model vs t 그래프 추가
         figure(6);  % 새로운 figure 생성
         set(gcf, 'Position', [150, 150, 800, 600]);  % Figure 크기 조정
 
@@ -291,7 +273,7 @@ for s = 2:num_trips
         xlabel('Time (s)', 'FontSize', labelFontSize);
 
         % 제목 설정
-        title('I, V, V_{model} vs Time for Trip 3', 'FontSize', titleFontSize);
+        title('I, V, V_{model} vs Time for Trip 1', 'FontSize', titleFontSize);
 
         % 범례 설정
         legend('Location', 'best', 'FontSize', legendFontSize);
@@ -302,7 +284,7 @@ for s = 2:num_trips
         hold off;
     end
 
-    %% 다음 트립을 위한 SOC0 업데이트
+    % 다음 트립을 위한 SOC0 업데이트
     SOC0 = SOC(end);  % 현재 트립의 마지막 SOC로 업데이트
 
 end
@@ -320,7 +302,7 @@ figure(10);
 hold on;
 
 % 각 트립에 대해 3D 그래프를 플롯합니다.
-for s = 3:num_trips  % s = 3부터 시작
+for s = 3:num_trips
     % 데이터 준비
     x_data = soc_start_all(s) * ones(size(theta_discrete));  % SOC 값
     y_data = theta_discrete;                                 % θ 값
@@ -353,7 +335,3 @@ grid on;
 
 set(gca, 'FontSize', axisFontSize);
 hold off;
-
-
-
-
