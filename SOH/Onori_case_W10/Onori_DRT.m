@@ -20,7 +20,11 @@ col_cell_label = {'W3','W4','W5','W7','W8','W9','W10','G1','V4','V5'};
 % 'soc_ocv_cap' 데이터를 로드합니다.
 load('RPT_All_soc_ocv_cap.mat', 'soc_ocv_cap');
 
-% SOC와 OCV 값 추출
+% load('soc_ocv.mat', 'soc_ocv');
+% soc_values = soc_ocv(:, 1);  % SOC 값
+% ocv_values = soc_ocv(:, 2);  % OCV 값
+
+% % SOC와 OCV 값 추출
 soc_values = soc_ocv_cap{1,7}(:, 1);  % SOC 값 (0 ~ 1)
 ocv_values = soc_ocv_cap{1,7}(:, 2);  % OCV 값 (V)
 
@@ -42,7 +46,7 @@ tau_discrete = exp(theta_discrete);
 delta_theta = theta_discrete(2) - theta_discrete(1);
 
 % 정규화 파라미터
-lambda = 10;  % 최적화된 람다 값 (필요에 따라 조정 가능)
+lambda = 2;  % 최적화된 람다 값 (필요에 따라 조정 가능)
 
 % Gamma에 대한 1차 차분 행렬 L_gamma 생성
 L_gamma = zeros(n-1, n);
@@ -129,8 +133,8 @@ for s = 2:num_trips
     y = y(:);  % y를 열 벡터로 변환
 
     %% 4.3 quadprog를 사용한 제약 조건 하의 추정
-    H = 2 * (W_aug' * W_aug + lambda * (L_aug' * L_aug));
-    f = -2 * W_aug' * y;
+    H =  2 * (W_aug' * W_aug + lambda * (L_aug' * L_aug));
+    f = - 2 * (W_aug' * y);
 
     % 제약 조건: Theta >= 0 (gamma와 R0는 0 이상)
     A = -eye(n+1);

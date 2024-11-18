@@ -1,13 +1,13 @@
 clear; clc; close all;
 
 %% 0. 폰트 크기 및 색상 매트릭스 설정
-% Font size settings
+% 폰트 크기 설정
 axisFontSize = 14;      % 축의 숫자 크기
 titleFontSize = 16;     % 제목의 폰트 크기
 legendFontSize = 12;    % 범례의 폰트 크기
 labelFontSize = 14;     % xlabel 및 ylabel의 폰트 크기
 
-% Color matrix 설정
+% 색상 매트릭스 설정
 c_mat = lines(9);  % 9개의 고유한 색상 정의
 
 %% 1. UDDS 주행 데이터 로드
@@ -55,6 +55,16 @@ gamma_est_all = zeros(num_trips-1, n);  % 마지막 트립 제외
 R0_est_all = zeros(num_trips-1, 1);
 soc_mid_all = zeros(num_trips-1, 1);  % 각 트립의 중간 SOC 저장
 
+% 추가: 각 트립의 W, V_RC, OCV, V_est를 저장할 셀 배열 생성
+W_all = cell(num_trips-1, 1);
+V_RC_all = cell(num_trips-1, 1);
+OCV_all = cell(num_trips-1, 1);
+V_est_all = cell(num_trips-1, 1);
+
+% V_RC_end와 W_end를 초기화 (첫 번째 트립의 시작 시점에는 0으로 설정)
+V_RC_end = zeros(n, 1);  % V_RC_end를 zeros로 초기화
+W_end = zeros(1, n);     % W_end를 zeros로 초기화
+
 for s = 1:num_trips-1  % 마지막 트립은 데이터가 짧으므로 제외
     fprintf('Processing Trip %d/%d...\n', s, num_trips-1);
     
@@ -73,7 +83,6 @@ for s = 1:num_trips-1  % 마지막 트립은 데이터가 짧으므로 제외
     
     soc_mid_all(s) = interp1(t_unique, SOC_unique, t_mid, 'linear', 'extrap');  % 중간 시간에 해당하는 SOC
     
-    
     % 시간 간격 dt 계산
     delta_t = [0; diff(t)];
     dt = delta_t;
@@ -90,7 +99,9 @@ for s = 1:num_trips-1  % 마지막 트립은 데이터가 짧으므로 제외
     for k_idx = 1:length(t)
         for i = 1:n
             if k_idx == 1
-                W(k_idx, i) = ik(k_idx) * (1 - exp(-dt(k_idx) / tau_discrete(i))) * delta_theta;
+                % 이전 트립의 마지막 W_end를 사용하여 계산
+                W(k_idx, i) = W_end(i) * exp(-dt(k_idx) / tau_discrete(i)) + ...
+                              ik(k_idx) * (1 - exp(-dt(k_idx) / tau_discrete(i))) * delta_theta;
             else
                 W(k_idx, i) = W(k_idx-1, i) * exp(-dt(k_idx) / tau_discrete(i)) + ...
                               ik(k_idx) * (1 - exp(-dt(k_idx) / tau_discrete(i))) * delta_theta;
@@ -136,11 +147,13 @@ for s = 1:num_trips-1  % 마지막 트립은 데이터가 짧으므로 제외
     %% 4.4 V_est 계산 (검증용)
     % V_RC 및 V_est 초기화
     V_RC = zeros(n, length(t));  % 각 요소의 전압
+    V_RC(:, 1) = V_RC_end;       % 이전 트립의 마지막 V_RC_end로 초기화
     V_est = zeros(length(t), 1);
     for k_idx = 1:length(t)
         if k_idx == 1
             for i = 1:n
-                V_RC(i, k_idx) = gamma_est(i) * delta_theta * ik(k_idx) * (1 - exp(-dt(k_idx) / tau_discrete(i)));
+                V_RC(i, k_idx) = V_RC_end(i) * exp(-dt(k_idx) / tau_discrete(i)) + ...
+                                 gamma_est(i) * delta_theta * ik(k_idx) * (1 - exp(-dt(k_idx) / tau_discrete(i)));
             end
         else
             for i = 1:n
@@ -151,6 +164,16 @@ for s = 1:num_trips-1  % 마지막 트립은 데이터가 짧으므로 제외
         % 시간 k_idx에서의 V_est 계산
         V_est(k_idx) = ocv_over_time(k_idx) + R0_est * ik(k_idx) + sum(V_RC(:, k_idx));
     end
+    
+    % 현재 트립의 마지막 V_RC와 W를 저장하여 다음 트립에서 사용
+    V_RC_end = V_RC(:, end);
+    W_end = W(end, :);
+    
+    %% 각 트립의 W, V_RC, OCV, V_est를 저장
+    W_all{s} = W;
+    V_RC_all{s} = V_RC;
+    OCV_all{s} = ocv_over_time;
+    V_est_all{s} = V_est;
     
     %% 4.5 DRT Gamma 그래프 출력
     % Figure 1: DRT Gamma 서브플롯 (4x4)
@@ -164,15 +187,13 @@ for s = 1:num_trips-1  % 마지막 트립은 데이터가 짧으므로 제외
     set(gca, 'FontSize', axisFontSize);
     % grid on;  % 그리드 제거
     
-    % Add R0 estimate as text annotation with scientific notation
-    % Add R0 estimate as text annotation in the top-left corner
-    x_text = min(theta_discrete);  % Set to the leftmost part of the x-axis
-    y_text = max(gamma_est);       % Set to the top part of the y-axis
+    % R0 추정값을 그래프에 텍스트로 추가
+    x_text = min(theta_discrete);  % x축의 왼쪽 끝
+    y_text = max(gamma_est);       % y축의 최댓값
     text(x_text, y_text, sprintf('R₀ = %.3e Ω', R0_est_all(s)), ...
         'FontSize', 8, 'Color', 'k', 'FontWeight', 'bold', 'HorizontalAlignment', 'left', 'VerticalAlignment', 'top');
     
-
-%% 4.6 전압 비교 그래프 출력 (전류 프로파일 추가 및 레이블 색상 변경)
+    %% 4.6 전압 비교 그래프 출력
     % Figure 2: Voltage and Current Comparison 서브플롯 (4x4)
     figure(2);
     subplot(4, 4, s);
@@ -186,35 +207,33 @@ for s = 1:num_trips-1  % 마지막 트립은 데이터가 짧으므로 제외
     legend('Location', 'best', 'FontSize', legendFontSize);
     
     yyaxis right  % 오른쪽 Y축 활성화 (전류)
-    plot(t, ik, 'Color', c_mat(mod(s-1,9)+1, :), 'LineWidth', 1, 'DisplayName', 'Current (A)');
+    plot(t, ik, 'Color', 'g', 'LineWidth', 1, 'DisplayName', 'Current (A)');
     ylabel('Current (A)', 'FontSize', labelFontSize, 'Color', 'g');  % 오른쪽 Y축 레이블 색상을 초록색으로 설정
     set(gca, 'YColor', 'g');  % 오른쪽 Y축의 눈금 및 값 색상을 초록색으로 설정
     legend('Location', 'best', 'FontSize', legendFontSize);
     set(gca, 'FontSize', axisFontSize);
     hold off;
     
-    % grid on;  % 그리드 제거
-    
     %% 4.7 Trip 1에 대한 별도의 Gamma 그래프 추가
-    % Trip 1의 gamma 그래프를 별도의 큰 그림으로 플롯합니다.
-    figure(5);  % 새로운 figure 생성
-    set(gcf, 'Position', [100, 100, 800, 600]);  % Figure 크기 조정 (가로:800, 세로:600)
-    plot(theta_discrete, gamma_est_all(1, :), 'LineWidth', 3, 'Color', c_mat(1, :));
-    xlabel('$\theta = \ln(\tau \, [s])$', 'Interpreter', 'latex', 'FontSize', labelFontSize)
-    ylabel('\gamma [\Omega]', 'FontSize', labelFontSize);
-    title('Trip 1 : DRT ', 'FontSize', titleFontSize);
-    % grid on;  % 그리드 제거
-    hold on;
-    
-    % R0 추정값을 그래프에 텍스트로 추가
-%     text(min(theta_discrete), max(gamma_est_all(1, :)), sprintf('R₀ = %.3e Ω', R0_est_all(1)), ...
-%         'FontSize', 12, 'Color', 'k', 'FontWeight', 'bold', 'HorizontalAlignment', 'left', 'VerticalAlignment', 'top');
-    
-    hold off;
-    
-    %% 4.8 Trip 1에 대한 I, V, V_model vs t 그래프 추가
-    %% 4.8 Trip 1에 대한 I, V, V_model vs t 그래프 추가
     if s == 1
+        figure(5);  % 새로운 figure 생성
+        set(gcf, 'Position', [100, 100, 800, 600]);  % Figure 크기 조정 (가로:800, 세로:600)
+        plot(theta_discrete, gamma_est_all(1, :), 'LineWidth', 3, 'Color', c_mat(1, :));
+        xlabel('$\theta = \ln(\tau \, [s])$', 'Interpreter', 'latex', 'FontSize', labelFontSize)
+        ylabel('\gamma [\Omega]', 'FontSize', labelFontSize);
+        title('Trip 1 : DRT ', 'FontSize', titleFontSize);
+        % grid on;  % 그리드 제거
+        hold on;
+        
+        % R0 추정값을 그래프에 텍스트로 추가
+        x_text = min(theta_discrete);
+        y_text = max(gamma_est_all(1, :));
+        text(x_text, y_text, sprintf('R₀ = %.3e Ω', R0_est_all(1)), ...
+            'FontSize', 12, 'Color', 'k', 'FontWeight', 'bold', 'HorizontalAlignment', 'left', 'VerticalAlignment', 'top');
+        
+        hold off;
+        
+        %% 4.8 Trip 1에 대한 I, V, V_model vs t 그래프 추가
         figure(6);  % 새로운 figure 생성
         set(gcf, 'Position', [150, 150, 800, 600]);  % Figure 크기 조정 (가로:800, 세로:600)
         
@@ -276,8 +295,6 @@ c.Label.String = 'Gamma [\Omega/s]';  % colorbar 라벨 설정
 view(135, 30);    % 시각화 각도 조정
 % grid on;  % 그리드 제거
 
-
-
 alpha(0.8);
 axis tight;
 
@@ -288,28 +305,28 @@ xlim([0 1]);
 set(gca, 'FontSize', axisFontSize);
 
 %% 5.2 개별 트립에 대한 3D 라인 플롯 생성
-% Set the z threshold
+% z 축 한계 설정
 z_threshold = 0.25;
 
 figure(4);
 hold on;  
 
-% Use colormap and color index as before
+% 컬러맵 및 색상 인덱스 설정
 cmap = jet;  % 컬러맵 설정
 num_colors = size(cmap, 1);
 soc_min = min(soc_mid_all);
 soc_max = max(soc_mid_all);
 
 for s = 1:num_trips-1
-    % Map SOC to colormap
+    % SOC를 컬러맵에 매핑
     color_idx = round((soc_mid_all(s) - soc_min) / (soc_max - soc_min) * (num_colors - 1)) + 1;
     color_idx = max(1, min(num_colors, color_idx));  % 인덱스 범위 제한
     
-    % Apply z threshold filter
+    % z_threshold를 적용하여 필터링
     gamma_data_filtered = gamma_est_all(s, :);
-    gamma_data_filtered(gamma_data_filtered > z_threshold) = NaN;  % Filter values above threshold
+    gamma_data_filtered(gamma_data_filtered > z_threshold) = NaN;  % 임계값 이상은 NaN 처리
     
-    % Plot filtered data
+    % 필터링된 데이터 플롯
     plot3(repmat(soc_mid_all(s), size(theta_discrete)), theta_discrete, gamma_data_filtered, ...
           'LineWidth', 1.5, 'Color', cmap(color_idx, :));
 end
@@ -323,11 +340,9 @@ c = colorbar;  % Colorbar 설정
 c.Label.String = 'SOC';  % Colorbar 라벨 설정
 caxis([soc_min soc_max]);  % Colorbar 범위를 SOC 범위로 설정
 
-
-
-% SOC axis setting
+% 축 설정
 xlim([0 1]);
-zlim([0, z_threshold]);  % z axis limit to 0.25
+zlim([0, z_threshold]);  % z 축 한계를 0.25로 설정
 
 view(135, 30);
 grid on;  % 그리드 제거
@@ -335,11 +350,4 @@ grid on;  % 그리드 제거
 set(gca, 'FontSize', axisFontSize);
 hold off;
 
-
-
-
-%% save
-
-%save('gamma_data.mat', 'gamma_sorted', 'soc_sorted', 'theta_discrete', 'R0_est_all', 'soc_mid_all');
-%save('soc_ocv_data.mat', 'soc_values', 'ocv_values');
 
