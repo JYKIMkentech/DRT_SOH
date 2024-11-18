@@ -77,14 +77,14 @@ num_cols = ceil(sqrt(num_trips));
 num_rows = ceil(num_trips / num_cols);
 
 % 초기 SOC 설정
-SOC0 = 1;  % (soc-ocv table에서 4.189v - soc 1 ), but 1시간 방전 후 마지막 voltage 4.1939 V
+SOC0 = 0.8007;  % (soc-ocv table에서 4.189v - soc 1 ), but 1시간 방전 후 마지막 voltage 4.1939 V
 
 % V_RC_end와 W_end를 초기화 (첫 번째 트립의 시작 시점에는 0으로 설정)
 V_RC_end = zeros(n, 1);
 W_end = zeros(1, n);
 
 % 루프를 s = 2부터 시작 
-for s = 2:num_trips
+for s = 3:num_trips
     fprintf('Processing Trip %d/%d...\n', s, num_trips);
     
     % 현재 트립의 데이터 추출
@@ -144,15 +144,15 @@ for s = 2:num_trips
     options = optimoptions('quadprog', 'Display', 'off', 'Algorithm', 'interior-point-convex');
 
     % quadprog 실행
-    [Theta_est, ~, exitflag] = quadprog(H, f, A, b, [], [], [], [], [], options);
+    [Param_est, ~, exitflag] = quadprog(H, f, A, b, [], [], [], [], [], options);
 
     if exitflag ~= 1
         warning('Optimization did not converge for trip %d.', s);
     end
 
     % gamma와 R0 추정값 추출
-    gamma_est = Theta_est(1:n);
-    R0_est = Theta_est(n+1);
+    gamma_est = Param_est(1:n);
+    R0_est = Param_est(n+1);
 
     % 추정값 저장
     gamma_est_all(s, :) = gamma_est';
