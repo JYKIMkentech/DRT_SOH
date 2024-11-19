@@ -27,7 +27,7 @@ warning off
 % 9        -> V4
 % 10       -> V5
 % -----------------
-sel_cell = 8; 
+sel_cell = 7; 
 
 %% General
 cell_name = {'W3' 'W4' 'W5' 'W7' 'W8' 'W9' 'W10' 'G1' 'V4' 'V5'};

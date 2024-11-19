@@ -1,14 +1,12 @@
 clc; clear; close all;
 
 % 데이터 로드
-load('G:\공유 드라이브\BSL_Onori\Cycling_tests\Processed_10\G1.mat');
-
+load('G:\공유 드라이브\BSL_Onori\Cycling_tests\Processed_1\W10.mat');
 load('RPT_All_soc_ocv_cap.mat');
 
 col_cell_label = {'W3','W4','W5','W7','W8','W9','W10','G1','V4','V5'};
 
-
-I_1C = 4.8; % [A]
+I_1C = 4.865; % [A]
 
 time = t_full_vec_M1_NMC25degC;
 curr = I_full_vec_M1_NMC25degC;                                            
@@ -186,7 +184,7 @@ t_start = Onori_Cycling_Total.t(1);
 
 % 전류 대비 시간 플롯 및 trip 시작점 표시
 figure;
-plot(Onori_Cycling_Total.t - t_start, Onori_Cycling_Total.I, 'b');  % 전체 데이터는 파란색 선으로
+plot(Onori_Cycling_Total.t - t_start, Onori_Cycling_Total.I, 'b', 'DisplayName', '전류 (I)');  % 전체 데이터는 파란색 선으로
 hold on;
 
 % 각 trip의 시작 지점 표시 및 레이블 추가
@@ -218,3 +216,97 @@ for i = 1:num_trips
     fprintf('trip%d: 시작 시간 = %.2f 초, 종료 시간 = %.2f 초\n', ...
         i, trips(i).time_reset(1), trips(i).time_reset(end));
 end
+
+%% -------------- SOC 계산 추가 --------------
+
+%% 1. 트립 데이터 로드
+% 'Trips' 구조체를 로드합니다.
+load('G:\공유 드라이브\BSL_Onori\Cycling_tests\Trips_Aging_1_W10.mat');  % 'Trips' 구조체를 로드합니다.
+
+col_cell_label = {'W3','W4','W5','W7','W8','W9','W10','G1','V4','V5'};
+
+%% 2. SOC-OCV 데이터 로드
+% 'soc_ocv_cap' 데이터를 로드합니다.
+load('RPT_All_soc_ocv_cap.mat', 'soc_ocv_cap');
+
+% load('soc_ocv.mat', 'soc_ocv');
+% soc_values = soc_ocv(:, 1);  % SOC 값
+% ocv_values = soc_ocv(:, 2);  % OCV 값
+
+% % SOC와 OCV 값 추출
+soc_values = soc_ocv_cap{1,7}(:, 1);  % SOC 값 (0 ~ 1)
+ocv_values = soc_ocv_cap{1,7}(:, 2);  % OCV 값 (V)
+
+% 배터리 용량 추출 (Capacity 열의 최대값)
+Q_batt = max(soc_ocv_cap{1,7}(:, 3));  % Ah 단위
+
+% 추출할 data 인덱스
+data_indices = [8, 9, 10, 11];
+
+% 빈 배열 초기화
+V_combined = [];
+I_combined = [];
+t_combined = [];
+
+% 데이터를 순차적으로 결합
+for idx = data_indices
+    V_combined = vertcat(V_combined, data(idx).V);
+    I_combined = vertcat(I_combined, data(idx).I);
+    t_combined = vertcat(t_combined, data(idx).t);
+end
+
+% 시간 정렬을 위해 t_combined를 기준으로 정렬 (필요 시)
+% [t_combined, sort_idx] = sort(t_combined);
+% V_combined = V_combined(sort_idx);
+% I_combined = I_combined(sort_idx);
+
+% 배터리 용량 (예시: 4.8 A·h)
+C = Q_batt;  % I_1C = 4.8 A
+
+% 시작 SOC 설정
+SOC_start = 0.15628;
+
+% 시간 간격 계산 (초 단위 -> 시간 단위로 변환)
+t_hours = t_combined / 3600;  % 초를 시간으로 변환
+
+% 전류 적분 (A·h)
+I_integral = cumtrapz(t_hours, I_combined);
+
+% SOC 계산
+SOC = SOC_start + (I_integral / C);  % 충전 시 SOC 증가, 방전 시 SOC 감소
+
+% SOC 플롯 (전류, 전압, SOC를 함께 서브플롯으로 표시)
+figure;
+
+% 서브플롯 1: 전류 (I) vs 시간
+subplot(3,1,1);
+plot(t_combined, I_combined, 'b', 'LineWidth', 1.5);
+xlabel('Time (sec)');
+ylabel('Current (A)');
+title('Current (I) vs Time');
+grid on;
+
+% 서브플롯 2: 전압 (V) vs 시간
+subplot(3,1,2);
+plot(t_combined, V_combined, 'g', 'LineWidth', 1.5);
+xlabel('Time (sec)');
+ylabel('Voltage (V)');
+title('Voltage (V) vs Time');
+grid on;
+
+% 서브플롯 3: SOC vs 시간
+subplot(3,1,3);
+plot(t_combined, SOC, 'r', 'LineWidth', 2);
+xlabel('time (sec)');
+ylabel('SOC');
+title('SOC vs Time');
+grid on;
+
+% 전체 플롯 레이아웃 조정
+sgtitle('Current,Voltage, SOC vs time');
+
+% SOC 데이터 저장 (옵션)
+% Onori_Cycling_Total_SOC.V = V_combined;
+% Onori_Cycling_Total_SOC.I = I_combined;
+% Onori_Cycling_Total_SOC.t = t_combined;
+% Onori_Cycling_Total_SOC.SOC = SOC;

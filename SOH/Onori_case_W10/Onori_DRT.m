@@ -46,7 +46,7 @@ tau_discrete = exp(theta_discrete);
 delta_theta = theta_discrete(2) - theta_discrete(1);
 
 % 정규화 파라미터
-lambda = 2;  % 최적화된 람다 값 (필요에 따라 조정 가능)
+lambda = 0.8;  % 최적화된 람다 값 (필요에 따라 조정 가능)
 
 % Gamma에 대한 1차 차분 행렬 L_gamma 생성
 L_gamma = zeros(n-1, n);
@@ -77,14 +77,14 @@ num_cols = ceil(sqrt(num_trips));
 num_rows = ceil(num_trips / num_cols);
 
 % 초기 SOC 설정
-SOC0 = 0.8007;  % (soc-ocv table에서 4.189v - soc 1 ), but 1시간 방전 후 마지막 voltage 4.1939 V
+SOC0 = 0.733;  % (soc-ocv table에서 4.189v - soc 1 ), but 1시간 방전 후 마지막 voltage 4.1939 V
 
 % V_RC_end와 W_end를 초기화 (첫 번째 트립의 시작 시점에는 0으로 설정)
 V_RC_end = zeros(n, 1);
 W_end = zeros(1, n);
 
 % 루프를 s = 2부터 시작 
-for s = 3:num_trips
+for s = 4:num_trips
     fprintf('Processing Trip %d/%d...\n', s, num_trips);
     
     % 현재 트립의 데이터 추출
@@ -324,7 +324,7 @@ figure(10);
 hold on;
 
 % 각 트립에 대해 3D 그래프를 플롯합니다.
-for s = 3:num_trips  % s = 3부터 시작
+for s = 4:num_trips  % s = 3부터 시작
     % 데이터 준비
     x_data = soc_start_all(s) * ones(size(theta_discrete));  % SOC 값
     y_data = theta_discrete;                                 % θ 값
