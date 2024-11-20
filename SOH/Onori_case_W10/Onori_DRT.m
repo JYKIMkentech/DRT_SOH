@@ -29,8 +29,9 @@ soc_values = soc_ocv_cap{1,7}(:, 1);  % SOC 값 (0 ~ 1)
 ocv_values = soc_ocv_cap{1,7}(:, 2);  % OCV 값 (V)
 
 % 배터리 용량 추출 (Capacity 열의 최대값)
-Q_batt = max(soc_ocv_cap{1,7}(:, 3));  % Ah 단위
 
+SOC0 = 0.73;  % (soc-ocv table에서 4.189v - soc 1 ), but 1시간 방전 후 마지막 voltage 4.1939 V
+Q_batt = 4.9 ; %max(soc_ocv_cap{1,7}(:, 3));  % Ah 단위
 %% 3. DRT 추정에 필요한 파라미터 설정
 n = 401;  % 이산 요소의 개수
 tau_min = 0.1;     % 최소 시간 상수 (초)
@@ -77,7 +78,6 @@ num_cols = ceil(sqrt(num_trips));
 num_rows = ceil(num_trips / num_cols);
 
 % 초기 SOC 설정
-SOC0 = 0.733;  % (soc-ocv table에서 4.189v - soc 1 ), but 1시간 방전 후 마지막 voltage 4.1939 V
 
 % V_RC_end와 W_end를 초기화 (첫 번째 트립의 시작 시점에는 0으로 설정)
 V_RC_end = zeros(n, 1);

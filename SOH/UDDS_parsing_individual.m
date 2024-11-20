@@ -6,7 +6,7 @@ load('RPT_All_soc_ocv_cap.mat');
 
 col_cell_label = {'W3','W4','W5','W7','W8','W9','W10','G1','V4','V5'};
 
-I_1C = 4.865; % [A]
+I_1C = 4.99; % [A]
 
 time = t_full_vec_M1_NMC25degC;
 curr = I_full_vec_M1_NMC25degC;                                            
@@ -261,10 +261,10 @@ end
 % I_combined = I_combined(sort_idx);
 
 % 배터리 용량 (예시: 4.8 A·h)
-C = Q_batt;  % I_1C = 4.8 A
+C =  I_1C; % Q_batt;  % I_1C = 4.8 A
 
 % 시작 SOC 설정
-SOC_start = 0.15628;
+SOC_start = 0.179;
 
 % 시간 간격 계산 (초 단위 -> 시간 단위로 변환)
 t_hours = t_combined / 3600;  % 초를 시간으로 변환

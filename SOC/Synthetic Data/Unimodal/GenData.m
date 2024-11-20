@@ -250,14 +250,14 @@ title('Bimodal \gamma vs \theta');
 
 %% Save
 
-% Save the current, voltage scenarios
-save(fullfile(save_path, 'AS1_1per.mat'), 'AS1_1per');
-save(fullfile(save_path, 'AS1_2per.mat'), 'AS1_2per');
-save(fullfile(save_path, 'AS2_1per.mat'), 'AS2_1per');
-save(fullfile(save_path, 'AS2_2per.mat'), 'AS2_2per');
-
-% Save the True Gamma vs theta
-save(fullfile(save_path, 'Gamma_unimodal.mat'), 'Gamma_unimodal');
-save(fullfile(save_path, 'Gamma_bimodal.mat'), 'Gamma_bimodal');
+% % Save the current, voltage scenarios
+% save(fullfile(save_path, 'AS1_1per.mat'), 'AS1_1per');
+% save(fullfile(save_path, 'AS1_2per.mat'), 'AS1_2per');
+% save(fullfile(save_path, 'AS2_1per.mat'), 'AS2_1per');
+% save(fullfile(save_path, 'AS2_2per.mat'), 'AS2_2per');
+% 
+% % Save the True Gamma vs theta
+% save(fullfile(save_path, 'Gamma_unimodal.mat'), 'Gamma_unimodal');
+% save(fullfile(save_path, 'Gamma_bimodal.mat'), 'Gamma_bimodal');
 
 

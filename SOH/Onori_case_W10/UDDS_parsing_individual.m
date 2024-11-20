@@ -8,7 +8,7 @@ load('G:\공유 드라이브\BSL_Onori\Cycling_tests\Processed_14\W10.mat');
 col_cell_label = {'W3','W4','W5','W7','W8','W9','W10','G1','V4','V5'};
 
 
-I_1C = 4.85; % [A]
+I_1C = 4.6; % [A]
 
 time = t_full_vec_M1_NMC25degC;
 curr = I_full_vec_M1_NMC25degC;                                            
