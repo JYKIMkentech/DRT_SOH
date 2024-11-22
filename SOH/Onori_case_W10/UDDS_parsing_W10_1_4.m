@@ -3,7 +3,7 @@ clc; clear; close all;
 %% 공통 경로 및 변수 설정
 common_path = 'G:\공유 드라이브\BSL_Onori\Cycling_tests';
 %dataset_names = {'Processed_1', 'Processed_14'}; % 처리할 데이터셋 이름
-dataset_names = {'Processed_1'}; % 처리할 데이터셋 이름
+dataset_names = {'Processed_14'}; % 처리할 데이터셋 이름
 cell_name = 'W10'; % 셀 이름
 udds_duration = 2600; % UDDS 사이클 지속 시간 [초]
 

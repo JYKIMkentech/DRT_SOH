@@ -30,8 +30,8 @@ ocv_values = soc_ocv_cap{1,7}(:, 2);  % OCV 값 (V)
 
 % 배터리 용량 추출 (Capacity 열의 최대값)
 
-SOC0 = 0.73;  % (soc-ocv table에서 4.189v - soc 1 ), but 1시간 방전 후 마지막 voltage 4.1939 V
-Q_batt = 4.9 ; %max(soc_ocv_cap{1,7}(:, 3));  % Ah 단위
+SOC0 = 0.732;  % (soc-ocv table에서 4.189v - soc 1 ), but 1시간 방전 후 마지막 voltage 4.1939 V
+Q_batt = 4.83 ; %max(soc_ocv_cap{1,7}(:, 3));  % Ah 단위
 %% 3. DRT 추정에 필요한 파라미터 설정
 n = 401;  % 이산 요소의 개수
 tau_min = 0.1;     % 최소 시간 상수 (초)
@@ -47,7 +47,7 @@ tau_discrete = exp(theta_discrete);
 delta_theta = theta_discrete(2) - theta_discrete(1);
 
 % 정규화 파라미터
-lambda = 0.8;  % 최적화된 람다 값 (필요에 따라 조정 가능)
+lambda = 1;  % 최적화된 람다 값 (필요에 따라 조정 가능)
 
 % Gamma에 대한 1차 차분 행렬 L_gamma 생성
 L_gamma = zeros(n-1, n);
@@ -314,7 +314,7 @@ end
 %% 5. gamma(soc, theta)를 이용한 3D DRT 그래프 생성
 
 % soc_min과 soc_max를 정의합니다.
-soc_min = min(soc_start_all(soc_start_all > 0));  % 0보다 큰 값만 고려
+soc_min = min(soc_start_all);  % 0보다 큰 값만 고려
 soc_max = max(soc_start_all);
 
 % gamma_est_all의 최대값을 이용하여 z축 한계를 설정합니다.
@@ -349,7 +349,7 @@ caxis([soc_min soc_max]);
 % 축 한계 설정
 xlim([0 1]);
 ylim([min(theta_discrete) max(theta_discrete)]);
-zlim([0, z_threshold]);
+zlim([0, 0.2]);
 
 % 뷰 설정
 view(135, 30);
