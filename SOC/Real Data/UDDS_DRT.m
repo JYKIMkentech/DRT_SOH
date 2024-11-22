@@ -23,7 +23,7 @@ ocv_values = soc_ocv(:, 2);  % OCV 값
 %% 3. DRT 추정에 필요한 파라미터 설정
 n = 201;  % 이산 요소의 개수
 tau_min = 0.1;     % 최소 시간 상수 (초)
-tau_max = 1100;    % 최대 시간 상수 (초)
+tau_max = 1370;    % 최대 시간 상수 (초)
 
 % Theta 및 tau 값 계산
 theta_min = log(tau_min);
@@ -35,7 +35,7 @@ tau_discrete = exp(theta_discrete);
 delta_theta = theta_discrete(2) - theta_discrete(1);
 
 % 정규화 파라미터
-lambda = 0.204; 
+lambda = 0.2; 
 
 % Gamma에 대한 1차 차분 행렬 L_gamma 생성
 L_gamma = zeros(n-1, n);
@@ -172,28 +172,30 @@ for s = 1:num_trips-1  % 마지막 트립은 데이터가 짧으므로 제외
         'FontSize', 8, 'Color', 'k', 'FontWeight', 'bold', 'HorizontalAlignment', 'left', 'VerticalAlignment', 'top');
     
 
-%% 4.6 전압 비교 그래프 출력 (전류 프로파일 추가 및 레이블 색상 변경)
-    % Figure 2: Voltage and Current Comparison 서브플롯 (4x4)
-    figure(2);
-    subplot(4, 4, s);
+    %% 4.6 전압 비교 그래프 출력 (전류 프로파일 추가 및 레이블 색상 변경)
+    % 각 트립에 대해 개별 figure로 플롯
+    figure(100 + s);  % 각 트립마다 고유한 figure 번호 사용
+    set(gcf, 'Position', [100, 100, 800, 600]);  % Figure 크기 조정
+    
     yyaxis left  % 왼쪽 Y축 활성화 (전압)
-    plot(t, V_sd, 'Color', c_mat(mod(s-1,9)+1, :), 'LineWidth', 1, 'DisplayName', 'Measured V_{udds}');
+    plot(t, V_sd, 'Color', c_mat(mod(s-1,9)+1, :), 'LineWidth', 1.5, 'DisplayName', 'Measured V_{udds}');
     hold on;
-    plot(t, V_est, '--', 'Color', c_mat(mod(s-1,9)+1, :), 'LineWidth', 1, 'DisplayName', 'Estimated V_{est}');
-    xlabel('Time (s)', 'FontSize', labelFontSize);
+    plot(t, V_est, '--', 'Color', c_mat(mod(s+3,9)+1, :), 'LineWidth', 1.5, 'DisplayName', 'Estimated V_{est}');
     ylabel('Voltage (V)', 'FontSize', labelFontSize, 'Color', 'k');  % 왼쪽 Y축 레이블 색상 설정 (검정색)
-    title(['Voltage and Current Comparison for Trip ', num2str(s)], 'FontSize', titleFontSize);
-    legend('Location', 'best', 'FontSize', legendFontSize);
     
     yyaxis right  % 오른쪽 Y축 활성화 (전류)
-    plot(t, ik, 'Color', c_mat(mod(s-1,9)+1, :), 'LineWidth', 1, 'DisplayName', 'Current (A)');
+    plot(t, ik, 'Color', c_mat(mod(s+6,9)+1, :), 'LineWidth', 1.5, 'DisplayName', 'Current (A)');
     ylabel('Current (A)', 'FontSize', labelFontSize, 'Color', 'g');  % 오른쪽 Y축 레이블 색상을 초록색으로 설정
     set(gca, 'YColor', 'g');  % 오른쪽 Y축의 눈금 및 값 색상을 초록색으로 설정
-    legend('Location', 'best', 'FontSize', legendFontSize);
+    
+    xlabel('Time (s)', 'FontSize', labelFontSize);
+    title(['Voltage and Current Comparison for Trip ', num2str(s)], 'FontSize', titleFontSize);
+    
+    % 범례 설정 (모든 데이터 시리즈를 포함하도록)
+    legend({'Measured V_{udds}', 'Estimated V_{est}', 'Current (A)'}, 'Location', 'best', 'FontSize', legendFontSize);
+    
     set(gca, 'FontSize', axisFontSize);
     hold off;
-    
-    % grid on;  % 그리드 제거
     
     %% 4.7 Trip 1에 대한 별도의 Gamma 그래프 추가
     % Trip 1의 gamma 그래프를 별도의 큰 그림으로 플롯합니다.
@@ -212,7 +214,7 @@ for s = 1:num_trips-1  % 마지막 트립은 데이터가 짧으므로 제외
     
     hold off;
     
-    %% 4.8 Trip 1에 대한 I, V, V_model vs t 그래프 추가
+    
     %% 4.8 Trip 1에 대한 I, V, V_model vs t 그래프 추가
     if s == 1
         figure(6);  % 새로운 figure 생성
