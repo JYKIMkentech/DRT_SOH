@@ -9,7 +9,7 @@ labelFontSize = 14;
 %% 1. 데이터 로드
 
 % ECM 파라미터 (HPPC 테스트로부터)
-load('optimized_params_struct_final.mat'); % 필드: R0, R1, C, SOC, avgI, m, Crate
+load('optimized_params_struct_final.mat'); % 필드: R0, R1, C, SOC, avgI, m, Crate 
 
 % DRT 파라미터 (gamma 및 tau 값)
 load('gamma_data.mat', 'gamma_sorted', 'soc_sorted', 'theta_discrete', 'R0_est_all', 'soc_mid_all');
