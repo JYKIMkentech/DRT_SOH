@@ -18,7 +18,7 @@ ocv_values = soc_ocv(:, 2);  % OCV 값
 SOC_initial = 0.9907;  % 초기 SOC를 설정합니다.
 
 % 배터리 용량 (Ah를 Coulomb로 변환)
-Q_battery = 2.9 * 3600;  % 배터리 용량 (2.9Ah)
+Q_battery = 2.7742 * 3600;  % 배터리 용량 (2.9Ah)
 
 % 시간에 따른 SOC 계산 (trapz를 사용하여 전류 적분)
 udds_SOC = zeros(size(udds_time));
