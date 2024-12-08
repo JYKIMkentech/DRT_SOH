@@ -80,7 +80,7 @@ soc_ocv = [SOC OCV];
 
 
 % 나중에 사용할 SOC-OCV 구조체 저장
-save('soc_ocv.mat', 'soc_ocv');
+%save('soc_ocv.mat', 'soc_ocv');
 
 
 plot(time,current);
