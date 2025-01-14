@@ -362,7 +362,7 @@ create_plots(SG, CG, C_grid, 'C ');
 
 
 %% save
-save('optimized_params_struct_final_ver2.mat', 'optimized_params_struct_final_ver2');
+%save('optimized_params_struct_final_ver2.mat', 'optimized_params_struct_final_ver2');
 
 
 %% 함수
